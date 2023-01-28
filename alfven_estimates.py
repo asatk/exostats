@@ -146,8 +146,8 @@ def estimate_alfven(data):
 
     return alfven_data
 
-CLASS_COLORS = ['#DDBB44','#00AA00','#FF5500','#00FFFF']
-CLASS_LABELS = ['subterran', 'terran', 'superterran', 'giant']
+CLASS_COLORS = ['#DDBB44','#00AA00','#FF5500','#00FFFF','#000000']
+CLASS_LABELS = ['subterran', 'terran', 'superterran', 'giant','']
 
 def mass_class(pl_mass):
     # subterran - 0.1 to 0.5 ME 
@@ -284,10 +284,14 @@ def main():
     else:
         alfven_data = pd.read_csv('current-exo-data/alfven_data.csv')
 
-    condition = alfven_data.habitable == 1
-    title = "Habitable Exoplanet Periastrons and RA Estimates"
-    imgname = 'current-exo-data/plot_habitable.png'
-    plot(alfven_data, condition, title, imgname, errorbars=True, names=True)
+
+    condition = alfven_data.habitable == 0
+    title = "Exoplanet Periastrons and RA Estimates"
+    imgname = 'current-exo-data/plot.png'
+    # condition = alfven_data.habitable == 1
+    # title = "Habitable Exoplanet Periastrons and RA Estimates"
+    # imgname = 'current-exo-data/plot_habitable.png'
+    plot(alfven_data, condition, title, imgname, errorbars=False, names=False)
 
 if __name__ == '__main__':
     main()

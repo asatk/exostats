@@ -5,7 +5,7 @@ from os import system
 
 # FETCH NEW EXO DATA:
 # > cat nasa_exo_query.txt | xargs wget -o nasa_exo_PSCP.csv
-fetch_DBs = False
+fetch_DBs = True
 update_exos = True
 load_exos = True
 
@@ -39,12 +39,12 @@ DATA/COLUMNS THAT ARE NEEDED
 def init_nasa_exo():
 
     # Load NASA exoplanet database
-    nasa_exo = pd.read_csv("nasa_exo_PSCP.csv")
+    nasa_exo = pd.read_csv("tables/nasa_exo_PSCP.csv")
 
     # !! need to fetch new caltech DB of Kep confs and update
     # Add KOI/KIC ID columns of confirmed Kepler planets
     p_koi = re.compile(r'^K(\d+)\.\d{2}$')
-    nasa_kep = pd.read_csv("nasa_exo_kep.csv")
+    nasa_kep = pd.read_csv("tables/nasa_exo_kep.csv")
     nasa_kep['KOI'] = nasa_kep.apply(lambda r: int(r.koi_name[1:-3]) if p_koi.match(str(r.koi_name)) is not None else np.nan, axis=1)
     nasa_kep.rename(columns={'kepid': 'KIC'}, inplace=True)
     nasa_exo = pd.merge(nasa_exo, nasa_kep, how='left', on='pl_name')
@@ -66,7 +66,7 @@ def init_nasa_exo():
 def update_exos_mcq13(nasa_exo):
 
     # Load McQuillan 2013 KOI stellar rotation rate survey
-    mcq13_kois = pd.read_csv("prot_mcq_2013.dat", sep="\s+")
+    mcq13_kois = pd.read_csv("tables/prot_mcq_2013.dat", sep="\s+")
     mcq13_kois = mcq13_kois[['KOI','PRot', 'e_PRot']]
     mcq13_kois.rename(columns={'PRot':'Prot','e_PRot': 'e_Prot'}, inplace=True)
     mcq13_kois.insert(len(mcq13_kois.columns), 'db', 'mcq13')
@@ -81,7 +81,7 @@ def update_exos_mcq13(nasa_exo):
 def update_exos_mcq14(nasa_exo):
 
     # Load McQuillan 2014 KIC stellar rotation rate survey
-    mcq14_kics = pd.read_csv("prot_mcq_2014.dat", sep="\s+")
+    mcq14_kics = pd.read_csv("tables/prot_mcq_2014.dat", sep="\s+")
     mcq14_kics = mcq14_kics[['KIC','PRot', 'e_PRot']]
     mcq14_kics.rename(columns={'PRot':'Prot','e_PRot': 'e_Prot'}, inplace=True)
     mcq14_kics.insert(len(mcq14_kics.columns), 'db', 'mcq14')
@@ -95,7 +95,7 @@ def update_exos_mcq14(nasa_exo):
 def update_exos_mar20(nasa_exo):
 
     # Load Martin 2020 TOI stellar rotation period survey
-    mar20 = pd.read_csv("prot_martin_2020_tic.csv", usecols=[0,1,2,3,4])
+    mar20 = pd.read_csv("tables/prot_martin_2020_tic.csv", usecols=[0,1,2,3,4])
     mar20['TIC'] = mar20.apply(lambda x: int(x['TIC_ID']), axis=1)
     mar20.drop(columns='TIC_ID',inplace=True)
     mar20.rename(columns={'eProt':'e_Prot'}, inplace=True)
@@ -124,7 +124,7 @@ def select_prot_martin(prot_str, fn=np.min):
     else: return float(prot_str)
 
 def update_exos_custom(nasa_exo):
-    arm16_prot = pd.read_csv("custom_prot.txt", sep="\s+", header=14, nrows=7)
+    arm16_prot = pd.read_csv("tables/custom_prot.txt", sep="\s+", header=14, nrows=7)
     
     arm16_prot = arm16_prot[['hostname','prot_acf','eprot_acf']]
     arm16_prot.rename(columns={'prot_acf':'Prot','eprot_acf':'e_Prot'}, inplace=True)
@@ -137,7 +137,7 @@ def update_exos_custom(nasa_exo):
     return exos_arm16
 
 def update_exos_lu22(nasa_exo):
-    lu22_gaia = pd.read_csv('lu_gaia_prot.txt', header=21, sep="\s+")
+    lu22_gaia = pd.read_csv('tables/prot_lu_gaia.txt', header=21, sep="\s+")
 
     lu22_gaia = lu22_gaia[['GAIA','Prot']]
     lu22_gaia.insert(len(lu22_gaia.columns), 'db', 'lu22')
@@ -165,7 +165,7 @@ def update_exos_nasa(nasa_exo):
     return exos_nasa
 
 def update_exos_habitable(nasa_exo):
-    habitable = pd.read_csv('habitable.txt', header=1)
+    habitable = pd.read_csv('tables/habitable.txt', header=1)
 
     exos_habitable = pd.merge(nasa_exo, habitable, how='inner', on='pl_name')[['hostname','pl_name']]
 
@@ -176,10 +176,10 @@ def main():
 
         print('Updating Planetary Systems Composite Parameters (pscomppars) database!')
         # Get updated Planetary Systems Combined Parameters DB
-        system('cat nasa_exo_query.txt | xargs wget -o log_PSCP -O nasa_exo_PSCP.csv')
+        system('cat nasa_exo_query.txt | xargs wget -o log_PSCP -O tables/nasa_exo_PSCP.csv')
 
         print('Updating Kepler confirmed planets (kepnames) database!')
-        system('cat nasa_exo_kep_query.txt | xargs wget -o log_kep -O nasa_exo_kep.csv')
+        system('cat nasa_exo_kep_query.txt | xargs wget -o log_kep -O tables/nasa_exo_kep.csv')
 
     if update_exos:
 

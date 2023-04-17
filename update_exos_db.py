@@ -5,8 +5,8 @@ from os import system
 
 # FETCH NEW EXO DATA:
 # > cat nasa_exo_query.txt | xargs wget -o nasa_exo_PSCP.csv
-fetch_DBs = True
-update_exos = True
+fetch_DBs = False
+update_exos = False
 load_exos = True
 
 '''
@@ -103,8 +103,8 @@ def update_exos_mar20(nasa_exo):
     mar20 = mar20[mar20.Prot.notnull()]
 
     # Selection criteria for rotation rates based on their classification/certainty
-    #selection = (mar20['Variability_Classification'] == "Unambiguous_Rotation") & mar20['Prot'].notnull()
-    selection = ((mar20['Variability_Classification'] == "Unambiguous_Rotation") | (mar20['Variability_Classification'] == "Dubious_Rotation")) & mar20['Prot'].notnull()
+    selection = (mar20['Variability_Classification'] == "Unambiguous_Rotation") & mar20['Prot'].notnull()
+    # selection = ((mar20['Variability_Classification'] == "Unambiguous_Rotation") | (mar20['Variability_Classification'] == "Dubious_Rotation")) & mar20['Prot'].notnull()
     mar20_prot = mar20[selection].copy(deep=False)
     mar20_prot['Prot'] = mar20_prot.apply(lambda x: select_prot_martin(x['Prot']), axis=1)
 
@@ -167,9 +167,22 @@ def update_exos_nasa(nasa_exo):
 def update_exos_habitable(nasa_exo):
     habitable = pd.read_csv('tables/habitable.txt', header=1)
 
-    exos_habitable = pd.merge(nasa_exo, habitable, how='inner', on='pl_name')[['hostname','pl_name']]
+    exos_habitable = pd.merge(nasa_exo, habitable, how='inner', on='pl_name')[['hostname', 'pl_name']]
 
     exos_habitable.to_csv('current-exo-data/exos_habitable.csv', index=False)
+
+def update_exos_hill23(nasa_exo):
+    # decide what to do w all the new measurements
+    # check Hill - if it just uses NEA then it shouldn't mater
+    # i guess we should also compare via computer too
+    hill23 = pd.read_csv('tables/CHZ_hill23.csv')
+    hill23 = hill23[['Planet']]
+    print(hill23)
+    hill23.rename(columns={'Planet': 'pl_name'}, inplace=True)
+
+    exos_hill23 = pd.merge(nasa_exo, hill23, how='inner', on='pl_name')[['hostname', 'pl_name']]
+
+    exos_hill23.to_csv('current-exo-data/exos_hill23.csv', index=False)
 
 def main():
     if fetch_DBs:
@@ -185,6 +198,8 @@ def main():
 
         nasa_exo = init_nasa_exo()
 
+        print("[nasa_exo]", nasa_exo.pl_name.count())
+
         exos_mcq13 = update_exos_mcq13(nasa_exo)
         exos_mcq14 = update_exos_mcq14(nasa_exo)
         exos_arm16 = update_exos_custom(nasa_exo)
@@ -192,13 +207,14 @@ def main():
         exos_lu22 = update_exos_lu22(nasa_exo)
         exos_nasa = update_exos_nasa(nasa_exo)
         update_exos_habitable(nasa_exo)
+        update_exos_hill23(nasa_exo)
 
-        print(exos_mcq13.count())
-        print(exos_mcq14.count())
-        print(exos_arm16.count())
-        print(exos_mar20.count())
-        print(exos_lu22.count())
-        print(exos_nasa.count())
+        print("[mcq13]\n", exos_mcq13.count())
+        print("[mcq14]\n", exos_mcq14.count())
+        print("[arm16]\n", exos_arm16.count())
+        print("[mar20]\n", exos_mar20.count())
+        print("[lu22]\n", exos_lu22.count())
+        print("[nasa]\n", exos_nasa.count())
 
     if load_exos:
         exos_mcq13 = pd.read_csv('current-exo-data/exos_mcq13.csv')
@@ -219,8 +235,8 @@ def main():
         exos.drop_duplicates(subset='hostname', inplace=True)
         exos = exos[['hostname', 'Prot', 'e_Prot', 'KOI', 'KIC', 'TIC', 'GAIA', 'db']]
         exos.to_csv('current-exo-data/exos.csv', index=False)
-        print(exos.count())
-    
+        print("[exos]\n", exos.count())
+        print("[exos: Prot]\n", exos.Prot.count())
 
 if __name__ == '__main__':
     main()

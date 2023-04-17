@@ -1,9 +1,10 @@
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 
-calculate = False
+from plot import plot
+
+calculate = True
 
 AVK = 0.64
 dAVK = 0.12
@@ -65,6 +66,20 @@ def RoAvg(RoVK, RoM):
 def dRoAvg(dRoVK, dRoM):
     return np.sqrt(np.nansum([pow(dRoVK, 2.),pow(dRoM, 2.)]))
 
+def chooseRo(RoVK, RoM):
+    if RoVK != np.nan:
+        return RoVK
+    elif RoM != np.nan:
+        return RoM
+    return np.nan
+
+def choosedRo(dRoVK, dRoM):
+    if dRoVK is not np.nan:
+        return dRoVK
+    elif dRoM is not np.nan:
+        return dRoM
+    return np.nan
+
 x = np.linspace(0.,2.7,1000) # ro/ro sol x vals
 prot_sol = 27.
 ro_sol = 1.85
@@ -76,18 +91,21 @@ s = -1.38
 ds = 0.14
 r = -0.16
 dr = 0.13
+# r = r - dr
+# r = r + dr
 # all values scaled to solar values at maximum
-# using Brun-Browning p23
+# using Vidotto et al. 2014 p 6
 # combining eqns: (7) Farrish 2019 and (2) Farrish 2021
 def ra_schrijver(ro, rad):
     return ra_sol * np.real(pow(ro / ro_sol, s * r) * pow(rad / r_sol, 2 * r))
 
 def dra(ro, rad, dro, drad):
     return ra_schrijver(ro, rad) * np.sqrt(pow(dra_sol / ra_sol, 2.) +
-                                           pow(s * r *  np.sqrt(pow(dro / ro, 2.) + pow(dro_sol / ro_sol, 2.)), 2.) +
+                                           pow(s * r * dro / ro, 2.) +
+                                           pow(s * r * dro_sol / ro_sol, 2.) +
                                            pow(2 * r * drad / rad, 2.) +
                                            pow(r * np.log(ro / ro_sol) * ds, 2.) +
-                                           pow((s * np.log(ro / ro_sol) + 2 * s * np.log(rad)) * dr, 2.))
+                                           pow((s * np.log(ro / ro_sol) + 2 * np.log(rad)) * dr, 2.))
 
 def measured_uncertainties(nasa_exo):
     nasa_exo['pl_bmasseerr'] = nasa_exo.apply(lambda x: np.max([x['pl_bmasseerr1'],np.fabs(x['pl_bmasseerr2'])]), axis=1)
@@ -113,9 +131,9 @@ def estimate_rossby(prot_data):
     prot_data['RoAvg'] = prot_data.apply(lambda x: RoAvg(x['RoVK'], x['RoM']), axis=1)
     prot_data['dRoAvg'] = prot_data.apply(lambda x: dRoAvg(x['dRoVK'], x['dRoM']), axis=1)
 
-    #choose which Ro is used in plots
-    prot_data['Ro'] = prot_data['RoM']
-    prot_data['dRo'] = prot_data['dRoM']
+    #choose which Ro is used in plots - could probably be done more elegantly
+    prot_data['Ro'] = prot_data.apply(lambda x: chooseRo(x['RoVK'], x['RoM']), axis=1)
+    prot_data['dRo'] = prot_data.apply(lambda x: choosedRo(x['dRoVK'], x['dRoM']), axis=1)
 
     return prot_data
 
@@ -124,14 +142,18 @@ def estimate_alfven(data):
     # Estimate value and uncertainty for periastron
     data['rperi'] = data.apply(lambda x: x['pl_orbsmax'] * (1 - x['pl_orbeccen']), axis=1)
     data['drperi'] = data.apply(lambda x: np.sqrt(np.nansum([
-    pow(x['pl_orbsmaxerr'] * (1 - x['pl_orbeccen']),2.),
-    pow(x['pl_orbsmax'] * x['pl_orbeccenerr'], 2.)])), axis=1)
+        pow(x['pl_orbsmaxerr'] * (1 - x['pl_orbeccen']),2.),
+        pow(x['pl_orbsmax'] * x['pl_orbeccenerr'], 2.)])), axis=1)
 
     # Calculate Shrijver scaling relation for mean AS radius
 
     # Estimate closest distance from star vs mean AS radius ratio
     alfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro'], x['st_rad']), axis=1)
-    dalfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro'], x['st_rad']) * np.sqrt(pow(x['drperi'] / x['rperi'], 2.) +
+    # dalfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro'], x['st_rad']) *
+    #                     np.sqrt(pow(x['drperi'] / x['rperi'], 2.) +
+    #                     pow(dra(x['Ro'], x['st_rad'], x['dRo'], x['st_raderr'] / ra_schrijver(x['Ro'], x['st_rad'])), 2.)), axis=1)
+    dalfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro'], x['st_rad']) *
+                        np.sqrt(pow(x['drperi'] / x['rperi'], 2.) +
                         pow(dra(x['Ro'], x['st_rad'], x['dRo'], x['st_raderr'] / ra_schrijver(x['Ro'], x['st_rad'])), 2.)), axis=1)
     alfven_data = data.copy(deep=False)
     alfven_data['orbit2alfven'] = alfven
@@ -185,10 +207,15 @@ def rad_class(pl_rad):
 def planet_classes(alfven_data):
 
     exos_habitable = pd.read_csv('current-exo-data/exos_habitable.csv')
+    exos_hill23 = pd.read_csv('current-exo-data/exos_hill23.csv')
+
+    # habitable_pl_names = set(exos_habitable.pl_name)
+    habitable_pl_names = set(exos_habitable.pl_name).union(set(exos_hill23.pl_name))
+    
     
     alfven_data['mass_class'] = alfven_data.apply(lambda r: mass_class(r.pl_bmasse), axis=1)
     alfven_data['rad_class'] = alfven_data.apply(lambda r: rad_class(r.pl_rade), axis=1)
-    alfven_data['habitable'] = alfven_data.apply(lambda r: 1 if r.pl_name in set(exos_habitable.pl_name) else 0, axis=1)
+    alfven_data['habitable'] = alfven_data.apply(lambda r: 1 if r.pl_name in habitable_pl_names else 0, axis=1)
 
     return alfven_data
 
@@ -224,47 +251,54 @@ def calculate_exos():
 
     alfven_data.to_csv('current-exo-data/alfven_data.csv',index=False)
 
-def plot(alfven_data, condition, title, imgname, errorbars=False, names=False):
-    # should figure out way to make more interactive (choose class, subset, etc)
-    # must speed up data input
-    # maybe add data series on top of each other?
-    subset = alfven_data[condition]
-    xlim = np.ceil(2 * np.max(subset.Ro)) / 2.
-    ylim = np.ceil(2 * np.max(subset.orbit2alfven)) / 2.
+    return alfven_data
 
-    labelled = [subset[subset.mass_class == i].iat[0,0] for i in range(0,4)]
+# # Rudimentary plotting program - slow when loading many data b/c each point is
+# # plotted individually
+# def alf_plot(alfven_data, condition, title, imgname, errorbars=False, names=False):
+#     # should figure out way to make more interactive (choose class, subset, etc)
+#     # must speed up data input
+#     # maybe add data series on top of each other?
+#     subset = alfven_data[condition]
+#     xlim = np.ceil(2 * np.max(subset.Ro)) / 2.
+#     ylim = np.ceil(2 * np.max(subset.orbit2alfven)) / 2.
+#     # ylim = 7.0
 
-    subset_rows = subset.iterrows()
+#     labelled = [subset[subset.mass_class == i].iat[0,0] for i in range(0,4)]
 
-    fig = plt.figure(figsize=(15,8))
-    ax = fig.add_subplot(111)
-    # ax.errorbar(habitable_alfven_all['Ro'], habitable_alfven_all['orbit2alfven'], xerr=habitable_alfven_all['dRo'], yerr=habitable_alfven_all['dorbit2alfven'], linestyle='None', ecolor='#333333')
+#     subset_rows = subset.iterrows()
 
-    for idx, row in subset_rows:
-        xpt = row.Ro
-        ypt = row.orbit2alfven
-        ax.scatter(xpt, ypt, color=CLASS_COLORS[row.mass_class], s=75, label=(CLASS_LABELS[row.mass_class] if row.pl_name in labelled else ''))
-        if errorbars:
-            ax.errorbar(xpt, ypt, xerr=row.dRo, yerr=row.dorbit2alfven, linestyle='None', ecolor='#333333')
+#     fig = plt.figure(figsize=(15,8))
+#     ax = fig.add_subplot(111)
+#     # ax.errorbar(habitable_alfven_all['Ro'], habitable_alfven_all['orbit2alfven'], xerr=habitable_alfven_all['dRo'], yerr=habitable_alfven_all['dorbit2alfven'], linestyle='None', ecolor='#333333')
+
+#     for idx, row in subset_rows:
+#         xpt = row.Ro
+#         ypt = row.orbit2alfven
+#         ax.scatter(xpt, ypt, color=CLASS_COLORS[row.mass_class], s=75, label=(CLASS_LABELS[row.mass_class] if row.pl_name in labelled else ''))
+#         if errorbars:
+#             ax.errorbar(xpt, ypt, xerr=row.dRo, yerr=row.dorbit2alfven, linestyle='None', ecolor='#333333')
         
-        if names:
-            lbl = row.pl_name
-            ax.text(xpt + 0.02, ypt + 0.01, lbl, fontsize=20)
+#         if names:
+#             lbl = row.pl_name
+#             ax.text(xpt + 0.02, ypt + 0.01, lbl, fontsize=20)
         
-    ax.set_title(title,fontsize=25)
-    ax.set_xlabel("Ro",fontsize=20)
-    ax.set_ylabel("rp/RA",fontsize=20)
-    plt.xticks(fontsize=15)
-    plt.yticks(fontsize=15)
-    ax.grid(visible=True)
-    ax.set_xlim([0.0,xlim])
-    ax.set_ylim([0.0,ylim])
-    ax.legend(loc=2,fontsize=15)
-    fig.set_facecolor('white')
-    plt.axhline(y = 1.0, xmin = 0.00, xmax = xlim, linestyle='--', color='#666666')
-    plt.text(xlim + .02, 0.98, 'AS', fontsize=15)
+#     ax.set_title(title,fontsize=35)
+#     ax.set_xlabel("Ro",fontsize=25)
+#     ax.set_ylabel("rp/RA",fontsize=25)
+#     plt.xticks(fontsize=20)
+#     plt.yticks(fontsize=20)
+#     ax.grid(visible=True)
+#     ax.set_xlim([0.0,xlim])
+#     ax.set_ylim([0.0,ylim])
+#     ax.legend(loc=2,fontsize=20)
+#     fig.set_facecolor('white')
+#     plt.axhline(y = 1.0, xmin = 0.00, xmax = xlim, linestyle='--', color='#666666')
+#     plt.text(xlim + .02, 0.98, 'AS', fontsize=20)
 
-    plt.savefig(imgname, format='png')
+#     plt.savefig(imgname, format='png')
+
+#     plt.show()
 
 '''
 ra_data = data.apply(lambda x: ra_schrijver(x['Ro'], x['st_rad']), axis=1)
@@ -284,14 +318,25 @@ def main():
     else:
         alfven_data = pd.read_csv('current-exo-data/alfven_data.csv')
 
+    print("[alfven_data]", alfven_data.count())
+    print("[alfven_data: habitable]", alfven_data[alfven_data.habitable == 1].count())
+    print("[alfven_data: mag habitable]", alfven_data[(alfven_data.orbit2alfven > 1.0) & (alfven_data.habitable == 1)].pl_name.count())
 
-    condition = alfven_data.habitable == 0
-    title = "Exoplanet Periastrons and RA Estimates"
-    imgname = 'current-exo-data/plot.png'
+    CHZ_MHC_names = alfven_data[alfven_data.habitable == 1][['pl_name', 'orbit2alfven']]
+    CHZ_MHC_names.to_csv('current-exo-data/CHZ_MHC_names.csv', index=False)
+
+    # condition = alfven_data.habitable == 0
+    # title = "Exoplanet Periastrons and RA Estimates"
+    # imgname = 'current-exo-data/plot.png'
+    # plot(alfven_data, condition, title, imgname, errorbars=False, names=False)
     # condition = alfven_data.habitable == 1
-    # title = "Habitable Exoplanet Periastrons and RA Estimates"
+    # color_conditions = [alfven_data.mass_class == i for i in range(0,4)]
+    # name_conditions = (alfven_data.habitable == 1)
+    # title = "Magnetic Habitability Criterion of Goldilocks Exoplanets"
     # imgname = 'current-exo-data/plot_habitable.png'
-    plot(alfven_data, condition, title, imgname, errorbars=False, names=False)
+    # plot(alfven_data, condition, color_conditions, title, imgname, errorbars=True, name_data=None)
+    
 
 if __name__ == '__main__':
     main()
+    

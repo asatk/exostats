@@ -6,8 +6,8 @@ from os import system
 # FETCH NEW EXO DATA:
 # > cat nasa_exo_query.txt | xargs wget -o nasa_exo_PSCP.csv
 fetch_DBs = False
-update_exos = False
-load_exos = True
+update_exos = True
+load_exos = False
 
 '''
 DATA/COLUMNS THAT ARE NEEDED

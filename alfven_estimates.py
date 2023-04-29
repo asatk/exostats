@@ -80,14 +80,15 @@ def choosedRo(dRoVK, dRoM):
         return dRoM
     return np.nan
 
-x = np.linspace(0.,2.7,1000) # ro/ro sol x vals
 prot_sol = 27.
 ro_sol = 1.85
 dro_sol = 0.26
 ra_sol = 0.1
 dra_sol = 0.02
 r_sol = 1.
-s = -1.38
+# s = -1.38
+# ds = 0.14
+s = -1.19
 ds = 0.14
 r = -0.16
 dr = 0.13
@@ -96,16 +97,28 @@ dr = 0.13
 # all values scaled to solar values at maximum
 # using Vidotto et al. 2014 p 6
 # combining eqns: (7) Farrish 2019 and (2) Farrish 2021
-def ra_schrijver(ro, rad):
-    return ra_sol * np.real(pow(ro / ro_sol, s * r) * pow(rad / r_sol, 2 * r))
 
-def dra(ro, rad, dro, drad):
-    return ra_schrijver(ro, rad) * np.sqrt(pow(dra_sol / ra_sol, 2.) +
+# def ra_schrijver(ro, rad):
+#     return ra_sol * np.real(pow(ro / ro_sol, s * r) * pow(rad / r_sol, 2 * r))
+
+# def dra(ro, rad, dro, drad):
+#     return ra_schrijver(ro, rad) * np.sqrt(pow(dra_sol / ra_sol, 2.) +
+#                                            pow(s * r * dro / ro, 2.) +
+#                                            pow(s * r * dro_sol / ro_sol, 2.) +
+#                                            pow(2 * r * drad / rad, 2.) +
+#                                            pow(r * np.log(ro / ro_sol) * ds, 2.) +
+#                                            pow((s * np.log(ro / ro_sol) + 2 * np.log(rad)) * dr, 2.))
+
+def ra_schrijver(ro):
+    return ra_sol * np.real(pow(ro / ro_sol, s * r))
+                                           
+
+def dra(ro, dro):
+    return ra_schrijver(ro) * np.sqrt(pow(dra_sol / ra_sol, 2.) +
                                            pow(s * r * dro / ro, 2.) +
                                            pow(s * r * dro_sol / ro_sol, 2.) +
-                                           pow(2 * r * drad / rad, 2.) +
                                            pow(r * np.log(ro / ro_sol) * ds, 2.) +
-                                           pow((s * np.log(ro / ro_sol) + 2 * np.log(rad)) * dr, 2.))
+                                           pow((s * np.log(ro / ro_sol)) * dr, 2.))
 
 def measured_uncertainties(nasa_exo):
     nasa_exo['pl_bmasseerr'] = nasa_exo.apply(lambda x: np.max([x['pl_bmasseerr1'],np.fabs(x['pl_bmasseerr2'])]), axis=1)
@@ -148,13 +161,16 @@ def estimate_alfven(data):
     # Calculate Shrijver scaling relation for mean AS radius
 
     # Estimate closest distance from star vs mean AS radius ratio
-    alfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro'], x['st_rad']), axis=1)
+    # alfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro'], x['st_rad']), axis=1)
     # dalfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro'], x['st_rad']) *
     #                     np.sqrt(pow(x['drperi'] / x['rperi'], 2.) +
     #                     pow(dra(x['Ro'], x['st_rad'], x['dRo'], x['st_raderr'] / ra_schrijver(x['Ro'], x['st_rad'])), 2.)), axis=1)
-    dalfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro'], x['st_rad']) *
+    
+    alfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro']), axis=1)
+    dalfven = data.apply(lambda x: x['rperi'] / ra_schrijver(x['Ro']) *
                         np.sqrt(pow(x['drperi'] / x['rperi'], 2.) +
-                        pow(dra(x['Ro'], x['st_rad'], x['dRo'], x['st_raderr'] / ra_schrijver(x['Ro'], x['st_rad'])), 2.)), axis=1)
+                        pow(dra(x['Ro'], x['dRo'] / ra_schrijver(x['Ro'])), 2.)), axis=1)
+
     alfven_data = data.copy(deep=False)
     alfven_data['orbit2alfven'] = alfven
     alfven_data['dorbit2alfven'] = dalfven
@@ -253,64 +269,6 @@ def calculate_exos():
 
     return alfven_data
 
-# # Rudimentary plotting program - slow when loading many data b/c each point is
-# # plotted individually
-# def alf_plot(alfven_data, condition, title, imgname, errorbars=False, names=False):
-#     # should figure out way to make more interactive (choose class, subset, etc)
-#     # must speed up data input
-#     # maybe add data series on top of each other?
-#     subset = alfven_data[condition]
-#     xlim = np.ceil(2 * np.max(subset.Ro)) / 2.
-#     ylim = np.ceil(2 * np.max(subset.orbit2alfven)) / 2.
-#     # ylim = 7.0
-
-#     labelled = [subset[subset.mass_class == i].iat[0,0] for i in range(0,4)]
-
-#     subset_rows = subset.iterrows()
-
-#     fig = plt.figure(figsize=(15,8))
-#     ax = fig.add_subplot(111)
-#     # ax.errorbar(habitable_alfven_all['Ro'], habitable_alfven_all['orbit2alfven'], xerr=habitable_alfven_all['dRo'], yerr=habitable_alfven_all['dorbit2alfven'], linestyle='None', ecolor='#333333')
-
-#     for idx, row in subset_rows:
-#         xpt = row.Ro
-#         ypt = row.orbit2alfven
-#         ax.scatter(xpt, ypt, color=CLASS_COLORS[row.mass_class], s=75, label=(CLASS_LABELS[row.mass_class] if row.pl_name in labelled else ''))
-#         if errorbars:
-#             ax.errorbar(xpt, ypt, xerr=row.dRo, yerr=row.dorbit2alfven, linestyle='None', ecolor='#333333')
-        
-#         if names:
-#             lbl = row.pl_name
-#             ax.text(xpt + 0.02, ypt + 0.01, lbl, fontsize=20)
-        
-#     ax.set_title(title,fontsize=35)
-#     ax.set_xlabel("Ro",fontsize=25)
-#     ax.set_ylabel("rp/RA",fontsize=25)
-#     plt.xticks(fontsize=20)
-#     plt.yticks(fontsize=20)
-#     ax.grid(visible=True)
-#     ax.set_xlim([0.0,xlim])
-#     ax.set_ylim([0.0,ylim])
-#     ax.legend(loc=2,fontsize=20)
-#     fig.set_facecolor('white')
-#     plt.axhline(y = 1.0, xmin = 0.00, xmax = xlim, linestyle='--', color='#666666')
-#     plt.text(xlim + .02, 0.98, 'AS', fontsize=20)
-
-#     plt.savefig(imgname, format='png')
-
-#     plt.show()
-
-'''
-ra_data = data.apply(lambda x: ra_schrijver(x['Ro'], x['st_rad']), axis=1)
-ro_data = data['Ro']
-rad_data = data['st_rad']
-
-#the alison plot
-plt.scatter(ro_data / ro_sol, ra_data / ra_sol)
-plt.plot(x, ra_schrijver(x, 1.) / ra_sol, c='black')
-plt.xlim((0.0,ro_sol))
-'''
-
 def main():
 
     if calculate:
@@ -322,7 +280,7 @@ def main():
     print("[alfven_data: habitable]", alfven_data[alfven_data.habitable == 1].count())
     print("[alfven_data: mag habitable]", alfven_data[(alfven_data.orbit2alfven > 1.0) & (alfven_data.habitable == 1)].pl_name.count())
 
-    CHZ_MHC_names = alfven_data[alfven_data.habitable == 1][['pl_name', 'orbit2alfven']]
+    CHZ_MHC_names = alfven_data[alfven_data.habitable == 1][['pl_name', 'Ro','orbit2alfven']]
     CHZ_MHC_names.to_csv('current-exo-data/CHZ_MHC_names.csv', index=False)
 
     # condition = alfven_data.habitable == 0

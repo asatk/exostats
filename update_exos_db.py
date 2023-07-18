@@ -234,7 +234,7 @@ def main():
         exos['GAIA'].fillna(-1, inplace=True, downcast='infer')
 
         exos.sort_values('e_Prot', inplace=True, ignore_index=True, ascending=True)
-        exos.drop_duplicates(subset='hostname', inplace=True)
+        exos.drop_duplicates(subset='hostname', inplace=True, keep="first")
         exos = exos[['hostname', 'Prot', 'e_Prot', 'KOI', 'KIC', 'TIC', 'GAIA', 'db']]
         exos.to_csv('current-exo-data/exos.csv', index=False)
         print("[exos]\n", exos.count())

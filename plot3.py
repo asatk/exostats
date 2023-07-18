@@ -4,10 +4,13 @@ import numpy as np
 import pandas as pd
 
 
-# CLASS_COLORS = ['#DDBB44','#00AA00','#DD5500','#33CCCC','#000000']
-CLASS_COLORS = ['C0','C1','C2','C3','C4']
+COLORS_MPL = ['C0','C1','C2','C3','C4']
+COLORS_1 = ["red", "blue", "green", "orange", "purple"]
+COLORS_2 = ['#DDBB44','#00AA00','#DD5500','#33CCCC','#000000']
+COLOR_HABITABLE = "black"
+
 CLASS_LABELS = ['subterran', 'terran', 'superterran', 'giant','no class']
-NAMED_STARS = ["Sol", "BD-11 4672", "GJ 1132", "GJ 3293", "K2-3", "Kepler-186",
+NAMED_STARS = ["BD-11 4672", "GJ 1132", "GJ 3293", "K2-3", "Kepler-186",
                "Kepler-419", "Kepler-436", "Kepler-438", "Kepler-62", "Kepler-705", "LHS 1140",
                "Proxima Cen", "Ross 128", "Teegarden's Star", "TOI-700",
                "TRAPPIST-1", "Wolf 1061"]
@@ -16,14 +19,18 @@ SOL_NAMES = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn",
 
 def plot_df(df, ax: plt.Axes, logy=False, show_names=False, plot_err=False,
             xnudge: float=0.05, ynudge: float=0.05, reverse_grp: bool=False,
-            highlight_habitable: bool=False, color_h: str="C9",
-            marker_h: str="*"):
+            highlight_habitable: bool=False, color_h: str=COLOR_HABITABLE,
+            marker_h: str="*", color_list: list[str]=COLORS_MPL,
+            class_list: list[str]=CLASS_LABELS):
 
     x = np.array(df.Ro)
     y = np.array(df.orbit2alfven)
-    grp_num = df.mass_class.iat[0]
-    color = CLASS_COLORS[grp_num]
-    label = CLASS_LABELS[grp_num]
+    grp_num = df.mass_class.iat[0]  # TODO >>>> MUST CHANGE THIS
+    color = color_list[grp_num]
+    label = class_list[grp_num]
+
+    if isinstance(plot_err, list):
+        plot_err = plot_err[grp_num]
     
     if logy:
         ax.set_yscale("log")
@@ -38,7 +45,7 @@ def plot_df(df, ax: plt.Axes, logy=False, show_names=False, plot_err=False,
         ytext = (y * (1 + ynudge)) if logy else (y + ynudge)
         name = df.plot_name
         ct = x.shape[0]
-        kwargs = ct * [{"fontsize": 12, "zorder": 10.0}]
+        kwargs = ct * [{"fontsize": 10, "zorder": 10.0}]
         list(map(plt.text, xtext, ytext, name, kwargs))
 
     scatter_zorder = 5 - (grp_num if reverse_grp else -grp_num)
@@ -65,10 +72,8 @@ def _make_name(row: pd.DataFrame) -> str:
         return s
     
     s += row["pl_letter"]
-    if row["pl_name"] not in SOL_NAMES:
-        return s
-    
-    return "%s (%s)"%(row["pl_name"], s)
+    return s
+
 
 def make_plot_names(df: pd.DataFrame, return_mapping: bool=False) -> pd.DataFrame:
     hostnames = pd.Series(NAMED_STARS, name="hostname")
@@ -88,17 +93,23 @@ def make_plot_names(df: pd.DataFrame, return_mapping: bool=False) -> pd.DataFram
         return df_all_plot_name, name_mapping
     return df_all_plot_name
 
+
 def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
               xlim: tuple[float]=None, ylim: tuple[float]=None,
               show_names: bool=False, names_table: bool=False,
               logy: bool=False, bottom_adj: float=0.125, left_adj: float=0.08,
-              leg_loc: int=4, **kwargs) -> None:
+              leg_loc: int=4, include_sol: bool=False, **kwargs) -> None:
+
+    df = df.copy()
 
     if show_names:
         if names_table:
             df["plot_name"], name_mapping = make_plot_names(df, return_mapping=True)
         else:
             df["plot_name"] = make_plot_names(df)
+
+    if include_sol:
+        df = add_solar_system_planets(df)
 
     if group is not None:
         df_plot = df.groupby(group, as_index=False)
@@ -145,6 +156,20 @@ def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
     _, index_u = np.unique(labl, return_index=True)
     labl_u = np.array(labl)[index_u]
     hand_u = np.array(hand)[index_u]
+
+    # reverse if reverse_grp?
+    if len(labl_u) == 4:
+        ind_shuffle = [1,3,2,0]
+    elif len(labl_u) == 6:
+        ind_shuffle = [3,5,4,1,2,0]
+    else:
+        ind_shuffle = [...]
+
+    labl_u = labl_u[ind_shuffle]
+    hand_u = hand_u[ind_shuffle]
+
+    # find better way to match the order of legend labels by matching w labels list idx
+
     
     ax1.legend(hand_u, labl_u, loc=leg_loc)
 
@@ -172,7 +197,7 @@ def add_solar_system_planets(df: pd.DataFrame) -> pd.DataFrame:
     sol = pd.DataFrame({
         "hostname": ["Sol", "Sol", "Sol"],
         "pl_name": ["Venus", "Earth", "Mars"],
-        "pl_letter": ["c", "d", "e"],
+        "plot_name": ["Venus", "Earth", "Mars"],
         "Ro": [ro_sol, ro_sol, ro_sol],
         "dRo": [dro_sol, dro_sol, dro_sol],
         "orbit2alfven": [r_p_venus / ra_sol, r_p_earth / ra_sol, r_p_mars / ra_sol],
@@ -197,42 +222,44 @@ if __name__ == "__main__":
 
     # Load planet habitability and plotting data
     df = pd.read_csv('current-exo-data/alfven_data.csv')
+    df_h = df[df["habitable"] == 1].reset_index()
 
-    if add_sol:
-        df = add_solar_system_planets(df)
+    # if add_sol:
+    #     df = add_solar_system_planets(df)
 
     # plot_list = [1, 2, 3, 4, 5, 6]
-    plot_list = [2, 6]
+    plot_list = []
 
     if 1 in plot_list:
         # save_path_a = "imgs/C0_MHC_log.png"
         save_path_a = None
-        plot_proc(df, group=group, save_path=save_path_a, xlim=xlim_a, ylim=ylim_a,
-                logy=True, left_adj=0.095, leg_loc=1)
+        plot_proc(df, group=group, save_path=save_path_a, xlim=xlim_a,
+            ylim=ylim_a, logy=True, left_adj=0.095, leg_loc=1,
+            color_list=COLORS_1)
     
     if 2 in plot_list:
         save_path_a = "imgs/C0_MHC_log_hbt.png"
         # save_path_a = None
-        plot_proc(df, group=group, save_path=save_path_a, xlim=xlim_a, ylim=ylim_a,
-                logy=True, left_adj=0.095, leg_loc=1, highlight_habitable=True)
+        plot_proc(df, group=group, save_path=save_path_a, xlim=xlim_a,
+            ylim=ylim_a, logy=True, left_adj=0.095, leg_loc=1,
+            highlight_habitable=True)
 
     if 3 in plot_list:
         # save_path_r = "imgs/C0_MHC_log_rev.png"
         save_path_r = None
-        plot_proc(df, group=group, save_path=save_path_r, xlim=xlim_a, ylim=ylim_a,
-                logy=True, left_adj=0.095, leg_loc=1, reverse_grp=True)
+        plot_proc(df, group=group, save_path=save_path_r, xlim=xlim_a,
+            ylim=ylim_a, logy=True, left_adj=0.095, leg_loc=1,
+            reverse_grp=True)
     
     if 4 in plot_list:
         # save_path_h = "imgs/C0_MHC_CHZ_log.png"
         save_path_h = None
-        df_h = df[df.habitable == 1].reset_index()
         plot_proc(df_h, group=group, save_path=save_path_h, xlim=xlim_h,
                 ylim=ylim_h, show_names=True, logy=True, plot_err=False)
     
     if 5 in plot_list:
         # save_path_h_e = "imgs/C0_MHC_CHZ_log_err.png"
         save_path_h_e = None
-        df_h = df[df.habitable == 1].reset_index()
         plot_proc(df_h, group=group, save_path=save_path_h_e, xlim=xlim_h,
                 ylim=ylim_h, show_names=True, logy=True, plot_err=True)
     
@@ -240,9 +267,32 @@ if __name__ == "__main__":
     if 6 in plot_list:
         save_path_h_e_t = "imgs/C0_MHC_CHZ_log_err_tbl.png"
         # save_path_h_e_t = None
-        df_h = df[df.habitable == 1].reset_index()
         plot_proc(df_h, group=group, save_path=save_path_h_e_t, xlim=xlim_h,
                 ylim=ylim_h, show_names=True, logy=True, plot_err=True,
-                names_table=True)
+                names_table=True, color_list=COLORS_1)
+
+
+    # master plots
+    save_path_m1 = "imgs/Fig1.png"
+    plot_proc(df, group=group, save_path=save_path_m1, xlim=xlim_h,
+        ylim=ylim_h, show_names=False, logy=True, plot_err=False,
+        names_table=False, color_list=COLORS_1, reverse_grp=True,
+        highlight_habitable=True, include_sol=True)
+    
+
+    save_path_m2 = "imgs/Fig2.png"
+    plot_proc(df_h, group=group, save_path=save_path_m2, xlim=xlim_h,
+        ylim=ylim_h, show_names=True, logy=True, plot_err=False,
+        names_table=True, color_list=COLORS_1, reverse_grp=True,
+        highlight_habitable=False, xnudge=0.01, ynudge=0.01, include_sol=True)
+
+
+    save_path_m3 = "imgs/Fig3.png"
+    plot_err = [False, True, False, False]
+
+    plot_proc(df_h, group=group, save_path=save_path_m3, xlim=xlim_h,
+        ylim=ylim_h, show_names=True, logy=True, plot_err=plot_err,
+        names_table=True, color_list=COLORS_1, reverse_grp=True,
+        highlight_habitable=False, xnudge=0.01, ynudge=0.01, include_sol=True)
 
     

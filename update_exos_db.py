@@ -7,12 +7,13 @@ from os import system
 # > cat nasa_exo_query.txt | xargs wget -o nasa_exo_PSCP.csv
 fetch_DBs = False
 update_exos = True
-load_exos = False
+load_exos = True
 
 '''
 DATA/COLUMNS THAT ARE NEEDED
  - Prot/PRot/st_rotp
  - pl_name (Planet Name)
+   - pl_letter
    - kic_id/kepid
    - koi/koi_name
    - tic_id
@@ -153,14 +154,14 @@ def update_exos_lu22(nasa_exo):
     return exos_lu22
 
 def update_exos_nasa(nasa_exo):
-    exos_nasa = nasa_exo[nasa_exo.st_rotp.notnull()][['hostname','st_rotp','st_rotperr1','st_rotperr2']]
-    exos_nasa['st_rotperr'] = nasa_exo.apply(lambda r: np.max([r.st_rotperr1, np.fabs(r.st_rotperr2)]), axis=1)
-    exos_nasa.rename(columns={'st_rotp':'Prot', 'st_rotperr': 'e_Prot'}, inplace=True)
-    exos_nasa.drop_duplicates(subset='hostname', inplace=True)
-    exos_nasa.drop(columns=['st_rotperr1','st_rotperr2'], inplace=True)
-    exos_nasa.insert(len(exos_nasa.columns), 'db', 'nasa')
+    exos_nasa = nasa_exo[nasa_exo.st_rotp.notnull()][["hostname", "st_rotp", "st_rotperr1", "st_rotperr2"]]
+    exos_nasa["st_rotperr"] = nasa_exo.apply(lambda r: np.max([r.st_rotperr1, np.fabs(r.st_rotperr2)]), axis=1)
+    exos_nasa.rename(columns={"st_rotp": "Prot", "st_rotperr": "e_Prot"}, inplace=True)
+    exos_nasa.drop_duplicates(subset="hostname", inplace=True)
+    exos_nasa.drop(columns=["st_rotperr1", "st_rotperr2"], inplace=True)
+    exos_nasa.insert(len(exos_nasa.columns), "db", "nasa")
 
-    exos_nasa.to_csv('current-exo-data/exos_nasa.csv', index=False)
+    exos_nasa.to_csv("current-exo-data/exos_nasa.csv", index=False)
 
     return exos_nasa
 
@@ -183,6 +184,7 @@ def update_exos_hill23(nasa_exo):
     exos_hill23 = pd.merge(nasa_exo, hill23, how='inner', on='pl_name')[['hostname', 'pl_name']]
 
     exos_hill23.to_csv('current-exo-data/exos_hill23.csv', index=False)
+
 
 def main():
     if fetch_DBs:

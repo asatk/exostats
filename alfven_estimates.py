@@ -2,9 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from plot import plot
-
-calculate = True
 
 AVK = 0.64
 dAVK = 0.12
@@ -20,24 +17,32 @@ dCM = 0.17
 
 LN10 = np.log(10)
 
+CLASS_COLORS = ['#DDBB44','#00AA00','#FF5500','#00FFFF','#000000']
+CLASS_LABELS = ['subterran', 'terran', 'superterran', 'giant','']
+
+
 # wright et al 2018 (eqn 5): valid for range 1.1 < V-K < 7.0
 def taucVK(V, K):
     if np.fabs(V - K - 4.05) <= 2.95:
         return pow(10., AVK + BVK * (V - K))
     else:
         return np.nan
-    
+
+
 def dtaucVK(V, K, dV, dK):
     return taucVK(V, K) * LN10 * np.sqrt(pow(dAVK, 2.) + 
                                          pow((V - K) * dBVK, 2.) + 
                                          pow(BVK * np.sqrt(pow(dV, 2.) + pow(dK, 2.)), 2.))
 
+
 def RoVK(Prot, V, K):
     return np.fabs(Prot) / taucVK(V,K)
+
 
 def dRoVK(Prot, V, K, dProt, dV, dK):
     return RoVK(Prot, V, K) * np.sqrt(pow(dProt / Prot, 2.) +
                                       pow(dtaucVK(V, K, dV, dK) / taucVK(V, K), 2.))
+
 
 # wright et al 2018 (eqn 6): valid for range 0.08 < M/Msol < 1.36
 #M in solar masses
@@ -47,24 +52,30 @@ def taucM(M):
     else:
         return np.nan
     
+
 def dtaucM(M, dM):
     return taucM(M) * LN10 * np.sqrt(pow(dAM, 2.) +
                                      pow(M * dBM, 2.) +
                                      pow(pow(M, 2.) * dCM, 2.) +
                                      pow((2 * M * CM + BM) * dM, 2.))
     
+
 def RoM(Prot, M):
     return np.fabs(Prot) / taucM(M)
+
 
 def dRoM(Prot, M, dProt, dM):
     return RoM(Prot, M) * np.sqrt(pow(dProt / Prot, 2.) + 
                                   pow(dtaucM(M, dM) / taucM(M), 2.))
 
+
 def RoAvg(RoVK, RoM):
     return np.nanmean([RoVK, RoM])
     
+
 def dRoAvg(dRoVK, dRoM):
     return np.sqrt(np.nansum([pow(dRoVK, 2.),pow(dRoM, 2.)]))
+
 
 def chooseRo(RoVK, RoM):
     if RoVK != np.nan:
@@ -72,6 +83,7 @@ def chooseRo(RoVK, RoM):
     elif RoM != np.nan:
         return RoM
     return np.nan
+
 
 def choosedRo(dRoVK, dRoM):
     if dRoVK is not np.nan:
@@ -109,6 +121,7 @@ dr = 0.13
 #                                            pow(r * np.log(ro / ro_sol) * ds, 2.) +
 #                                            pow((s * np.log(ro / ro_sol) + 2 * np.log(rad)) * dr, 2.))
 
+
 def ra_schrijver(ro):
     return ra_sol * np.real(pow(ro / ro_sol, s * r))
                                            
@@ -119,6 +132,7 @@ def dra(ro, dro):
                                            pow(s * r * dro_sol / ro_sol, 2.) +
                                            pow(r * np.log(ro / ro_sol) * ds, 2.) +
                                            pow((s * np.log(ro / ro_sol)) * dr, 2.))
+
 
 def measured_uncertainties(nasa_exo):
     nasa_exo['pl_bmasseerr'] = nasa_exo.apply(lambda x: np.max([x['pl_bmasseerr1'],np.fabs(x['pl_bmasseerr2'])]), axis=1)
@@ -131,6 +145,7 @@ def measured_uncertainties(nasa_exo):
     nasa_exo['sy_kmagerr'] = nasa_exo.apply(lambda x: np.max([x['sy_kmagerr1'],np.fabs(x['sy_kmagerr2'])]), axis=1)
     nasa_exo['sy_vmagerr'] = nasa_exo.apply(lambda x: np.max([x['sy_vmagerr1'],np.fabs(x['sy_vmagerr2'])]), axis=1)
     return nasa_exo
+
 
 def estimate_rossby(prot_data):
     prot_data['RoVK'] = prot_data.apply(lambda x: RoVK(x['Prot'], x['sy_vmag'], x['sy_kmag']), axis=1)
@@ -149,6 +164,7 @@ def estimate_rossby(prot_data):
     prot_data['dRo'] = prot_data.apply(lambda x: choosedRo(x['dRoVK'], x['dRoM']), axis=1)
 
     return prot_data
+
 
 def estimate_alfven(data):
     
@@ -184,8 +200,6 @@ def estimate_alfven(data):
 
     return alfven_data
 
-CLASS_COLORS = ['#DDBB44','#00AA00','#FF5500','#00FFFF','#000000']
-CLASS_LABELS = ['subterran', 'terran', 'superterran', 'giant','']
 
 def mass_class(pl_mass):
     # subterran - 0.1 to 0.5 ME 
@@ -202,6 +216,7 @@ def mass_class(pl_mass):
         return 3
     else:
         return -1
+
 
 def rad_class(pl_rad):
     # subterran - 0.4 to 0.8 RE
@@ -235,13 +250,14 @@ def planet_classes(alfven_data):
 
     return alfven_data
 
+
 def calculate_exos():
     nasa_exo = pd.read_csv('current-exo-data/nasa_exo.csv')
     nasa_exo = measured_uncertainties(nasa_exo)
     exos = pd.read_csv('current-exo-data/exos.csv')
 
     # List exoplanets with a host star that has a rotation period + stats
-    prot_col_list = ['pl_name','hostname','Prot','e_Prot','pl_bmasse',
+    prot_col_list = ['pl_name','hostname', 'pl_letter', 'Prot','e_Prot','pl_bmasse',
         'pl_bmasseerr','pl_bmassprov','pl_rade','pl_radeerr','pl_orbsmax',
         'pl_orbsmaxerr','pl_orbeccen','pl_orbeccenerr','sy_vmag','sy_vmagerr',
         'sy_kmag','sy_kmagerr','st_rad','st_raderr','st_mass','st_masserr',
@@ -252,7 +268,7 @@ def calculate_exos():
     prot_data = estimate_rossby(prot_data)
 
     # List exoplanets that have all of the relevant stats: Ro, a, e 
-    data_col_list = ['pl_name','pl_orbsmax','pl_orbsmaxerr','pl_orbeccen',
+    data_col_list = ['pl_name', 'hostname', 'pl_letter', 'pl_orbsmax','pl_orbsmaxerr','pl_orbeccen',
         'pl_orbeccenerr','pl_rade','pl_bmasse','pl_bmassprov','st_rad',
         'st_raderr','RoVK','RoM','RoAvg','Ro','dRo','KOI','KIC','TIC','GAIA','db']
     
@@ -269,30 +285,17 @@ def calculate_exos():
 
     return alfven_data
 
+
 def main():
 
-    if calculate:
-        alfven_data = calculate_exos()
-    else:
-        alfven_data = pd.read_csv('current-exo-data/alfven_data.csv')
-
+    alfven_data = calculate_exos()
+    
     print("[alfven_data]", alfven_data.count())
     print("[alfven_data: habitable]", alfven_data[alfven_data.habitable == 1].count())
     print("[alfven_data: mag habitable]", alfven_data[(alfven_data.orbit2alfven > 1.0) & (alfven_data.habitable == 1)].pl_name.count())
 
-    CHZ_MHC_names = alfven_data[alfven_data.habitable == 1][['pl_name', 'Ro','orbit2alfven']]
+    CHZ_MHC_names = alfven_data[alfven_data.habitable == 1][["pl_name", "Ro", "orbit2alfven"]]
     CHZ_MHC_names.to_csv('current-exo-data/CHZ_MHC_names.csv', index=False)
-
-    # condition = alfven_data.habitable == 0
-    # title = "Exoplanet Periastrons and RA Estimates"
-    # imgname = 'current-exo-data/plot.png'
-    # plot(alfven_data, condition, title, imgname, errorbars=False, names=False)
-    # condition = alfven_data.habitable == 1
-    # color_conditions = [alfven_data.mass_class == i for i in range(0,4)]
-    # name_conditions = (alfven_data.habitable == 1)
-    # title = "Magnetic Habitability Criterion of Goldilocks Exoplanets"
-    # imgname = 'current-exo-data/plot_habitable.png'
-    # plot(alfven_data, condition, color_conditions, title, imgname, errorbars=True, name_data=None)
     
 
 if __name__ == '__main__':

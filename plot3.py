@@ -4,12 +4,12 @@ import numpy as np
 import pandas as pd
 
 
-COLORS_MPL = ['C0','C1','C2','C3','C4']
+COLORS_MPL = ["C0", "C1", "C2", "C3", "C4"]
 COLORS_1 = ["red", "blue", "green", "orange", "purple"]
-COLORS_2 = ['#DDBB44','#00AA00','#DD5500','#33CCCC','#000000']
+COLORS_2 = ["#DDBB44", "#00AA00", "#DD5500", "#33CCCC", "#000000"]
 COLOR_HABITABLE = "black"
 
-CLASS_LABELS = ['subterran', 'terran', 'superterran', 'giant','no class']
+CLASS_LABELS = ["subterran", "terran", "superterran", "giant", "no class"]
 NAMED_STARS = ["BD-11 4672", "GJ 1132", "GJ 3293", "K2-3", "Kepler-186",
                "Kepler-419", "Kepler-436", "Kepler-438", "Kepler-62", "Kepler-705", "LHS 1140",
                "Proxima Cen", "Ross 128", "Teegarden's Star", "TOI-700",
@@ -75,16 +75,27 @@ def _make_name(row: pd.DataFrame) -> str:
     return s
 
 
-def make_plot_names(df: pd.DataFrame, return_mapping: bool=False) -> pd.DataFrame:
-    hostnames = pd.Series(NAMED_STARS, name="hostname")
+def make_plot_names(df: pd.DataFrame, return_mapping: bool=False,
+                    named_stars: list[str]=NAMED_STARS) -> pd.DataFrame:
+    
+    if len(NAMED_STARS) == 0:
+        df_all_plot_name = pd.Series(["" for _ in df.iterrows()])
+        if return_mapping:
+            return df_all_plot_name, {}
+        return df_all_plot_name
+    
+    hostnames = pd.Series(named_stars, name="hostname")
+    
     df_fltr = pd.merge(df, hostnames, how="inner", on="hostname")[["hostname", "pl_name", "pl_letter"]]
     df_fltr["grp_num"] = df_fltr.groupby("hostname").ngroup() + 1
     df_map = df_fltr.drop_duplicates(subset="hostname")[["grp_num", "hostname"]]
     # name_mapping = [{entry["grp_num"]: entry["hostname"]} for entry in df_map.to_dict(orient="records")]
     name_mapping = df_map.to_dict(orient="split")["data"]
+    
     df_grp_len = df_fltr.groupby("hostname")["grp_num"].count()
     df_grp_len.rename("grp_len", inplace=True)
     df_grps = pd.merge(df_fltr, df_grp_len, how="left", on="hostname")
+    
     df_grps["plot_name"] = df_grps.apply(_make_name, axis=1)
     df_all_plot_name = pd.merge(df, df_grps, how="left", on="pl_name")["plot_name"]
     df_all_plot_name.fillna("", inplace=True)
@@ -96,17 +107,21 @@ def make_plot_names(df: pd.DataFrame, return_mapping: bool=False) -> pd.DataFram
 
 def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
               xlim: tuple[float]=None, ylim: tuple[float]=None,
-              show_names: bool=False, names_table: bool=False,
+              named_stars: list[str]=None, names_table: bool=False,
               logy: bool=False, bottom_adj: float=0.125, left_adj: float=0.08,
               leg_loc: int=4, include_sol: bool=False, **kwargs) -> None:
 
     df = df.copy()
 
-    if show_names:
+    if named_stars is not None:
+        show_names = True
         if names_table:
-            df["plot_name"], name_mapping = make_plot_names(df, return_mapping=True)
+            df["plot_name"], name_mapping = make_plot_names(df, return_mapping=True, named_stars=named_stars)
         else:
-            df["plot_name"] = make_plot_names(df)
+            df["plot_name"] = make_plot_names(df, return_mapping=False, named_stars=named_stars)
+    else:
+        show_names = False
+        names_table = False
 
     if include_sol:
         df = add_solar_system_planets(df)
@@ -224,74 +239,30 @@ if __name__ == "__main__":
     df = pd.read_csv('current-exo-data/alfven_data.csv')
     df_h = df[df["habitable"] == 1].reset_index()
 
-    # if add_sol:
-    #     df = add_solar_system_planets(df)
-
-    # plot_list = [1, 2, 3, 4, 5, 6]
-    plot_list = []
-
-    if 1 in plot_list:
-        # save_path_a = "imgs/C0_MHC_log.png"
-        save_path_a = None
-        plot_proc(df, group=group, save_path=save_path_a, xlim=xlim_a,
-            ylim=ylim_a, logy=True, left_adj=0.095, leg_loc=1,
-            color_list=COLORS_1)
-    
-    if 2 in plot_list:
-        save_path_a = "imgs/C0_MHC_log_hbt.png"
-        # save_path_a = None
-        plot_proc(df, group=group, save_path=save_path_a, xlim=xlim_a,
-            ylim=ylim_a, logy=True, left_adj=0.095, leg_loc=1,
-            highlight_habitable=True)
-
-    if 3 in plot_list:
-        # save_path_r = "imgs/C0_MHC_log_rev.png"
-        save_path_r = None
-        plot_proc(df, group=group, save_path=save_path_r, xlim=xlim_a,
-            ylim=ylim_a, logy=True, left_adj=0.095, leg_loc=1,
-            reverse_grp=True)
-    
-    if 4 in plot_list:
-        # save_path_h = "imgs/C0_MHC_CHZ_log.png"
-        save_path_h = None
-        plot_proc(df_h, group=group, save_path=save_path_h, xlim=xlim_h,
-                ylim=ylim_h, show_names=True, logy=True, plot_err=False)
-    
-    if 5 in plot_list:
-        # save_path_h_e = "imgs/C0_MHC_CHZ_log_err.png"
-        save_path_h_e = None
-        plot_proc(df_h, group=group, save_path=save_path_h_e, xlim=xlim_h,
-                ylim=ylim_h, show_names=True, logy=True, plot_err=True)
-    
-
-    if 6 in plot_list:
-        save_path_h_e_t = "imgs/C0_MHC_CHZ_log_err_tbl.png"
-        # save_path_h_e_t = None
-        plot_proc(df_h, group=group, save_path=save_path_h_e_t, xlim=xlim_h,
-                ylim=ylim_h, show_names=True, logy=True, plot_err=True,
-                names_table=True, color_list=COLORS_1)
-
+    named_stars = df_h[df_h[group] == 1]["hostname"].drop_duplicates().to_list()
+    named_stars.sort()
 
     # master plots
     save_path_m1 = "imgs/Fig1.png"
+    save_path_m1 = None
     plot_proc(df, group=group, save_path=save_path_m1, xlim=xlim_h,
-        ylim=ylim_h, show_names=False, logy=True, plot_err=False,
+        ylim=ylim_h, named_stars=None, logy=True, plot_err=False,
         names_table=False, color_list=COLORS_1, reverse_grp=True,
         highlight_habitable=True, include_sol=True)
     
 
-    save_path_m2 = "imgs/Fig2.png"
+    save_path_m2 = "imgs/Fig2_TERRAN.png"
     plot_proc(df_h, group=group, save_path=save_path_m2, xlim=xlim_h,
-        ylim=ylim_h, show_names=True, logy=True, plot_err=False,
+        ylim=ylim_h, named_stars=named_stars, logy=True, plot_err=False,
         names_table=True, color_list=COLORS_1, reverse_grp=True,
         highlight_habitable=False, xnudge=0.01, ynudge=0.01, include_sol=True)
 
 
-    save_path_m3 = "imgs/Fig3.png"
+    save_path_m3 = "imgs/Fig3_TERRAN.png"
     plot_err = [False, True, False, False]
 
     plot_proc(df_h, group=group, save_path=save_path_m3, xlim=xlim_h,
-        ylim=ylim_h, show_names=True, logy=True, plot_err=plot_err,
+        ylim=ylim_h, named_stars=named_stars, logy=True, plot_err=plot_err,
         names_table=True, color_list=COLORS_1, reverse_grp=True,
         highlight_habitable=False, xnudge=0.01, ynudge=0.01, include_sol=True)
 

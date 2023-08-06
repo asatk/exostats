@@ -1,4 +1,3 @@
-import matplotlib as mpl
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -14,20 +13,29 @@ NAMED_STARS = ["BD-11 4672", "GJ 1132", "GJ 3293", "K2-3", "Kepler-186",
                "Kepler-419", "Kepler-436", "Kepler-438", "Kepler-62", "Kepler-705", "LHS 1140",
                "Proxima Cen", "Ross 128", "Teegarden's Star", "TOI-700",
                "TRAPPIST-1", "Wolf 1061"]
+NAMED_PLANETS = ["GJ 3323 c", "K2-3 d", "Kepler-186 f", "Kepler-296 e",
+                 "Kepler-438 b", "Kepler-1229 b", "TOI-700 d", "TOI-700 e",
+                 "TRAPPIST-1 f", "TRAPPIST-1 g"] # CHZ terran MHC>1
 SOL_NAMES = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn",
              "Uranus", "Neptune"]
 
-def plot_df(df, ax: plt.Axes, logy=False, show_names=False, plot_err=False,
-            xnudge: float=0.05, ynudge: float=0.05, reverse_grp: bool=False,
-            highlight_habitable: bool=False, color_h: str=COLOR_HABITABLE,
-            marker_h: str="*", color_list: list[str]=COLORS_MPL,
-            class_list: list[str]=CLASS_LABELS):
+
+def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
+            plot_err=False, xnudge: float=0.05, ynudge: float=0.05,
+            reverse_grp: bool=False, highlight_habitable: bool=False,
+            color_h: str=COLOR_HABITABLE, marker_h: str="*",
+            color_list: list[str]=COLORS_MPL,
+            class_list: list[str]=CLASS_LABELS, **kwargs):
 
     x = np.array(df.Ro)
     y = np.array(df.orbit2alfven)
     grp_num = df.mass_class.iat[0]  # TODO >>>> MUST CHANGE THIS
     color = color_list[grp_num]
     label = class_list[grp_num]
+    alpha = kwargs.get("alpha", 1.0)
+    alpha_h = kwargs.get("alpha_h", 1.0)
+    s = kwargs.get("s", 20)
+    s_h = kwargs.get("s_h", 100)
 
     if isinstance(plot_err, list):
         plot_err = plot_err[grp_num]
@@ -43,7 +51,7 @@ def plot_df(df, ax: plt.Axes, logy=False, show_names=False, plot_err=False,
     if show_names:
         xtext = x + xnudge
         ytext = (y * (1 + ynudge)) if logy else (y + ynudge)
-        name = df.plot_name
+        name = df["plot_name"]
         ct = x.shape[0]
         kwargs = ct * [{"fontsize": 10, "zorder": 10.0}]
         list(map(plt.text, xtext, ytext, name, kwargs))
@@ -56,14 +64,15 @@ def plot_df(df, ax: plt.Axes, logy=False, show_names=False, plot_err=False,
         nh = np.logical_not(h)
         x_nh = x[nh]
         y_nh = y[nh]
-        ax.scatter(x_h, y_h, color=color_h, marker=marker_h, zorder=9.5, s=100,label="CHZ")
-        ax.scatter(x_nh, y_nh, color=color, label=label, zorder=scatter_zorder)
+        ax.scatter(x_h, y_h, color=color_h, alpha=alpha_h, marker=marker_h, zorder=9.5, s=s_h, label="CHZ")
+        ax.scatter(x_nh, y_nh, color=color, alpha=alpha, zorder=scatter_zorder, s=s, label=label)
     else:
-        ax.scatter(x, y, color=color, label=label, zorder=scatter_zorder)
+        ax.scatter(x, y, color=color, alpha=alpha, label=label, zorder=scatter_zorder, s=s)
     
     ax.set_xlabel("Rossby Number", fontsize=18)
     ax.set_ylabel("MHC", fontsize=18)
     ax.tick_params(labelsize=16)
+
 
 def _make_name(row: pd.DataFrame) -> str:
     
@@ -75,7 +84,7 @@ def _make_name(row: pd.DataFrame) -> str:
     return s
 
 
-def make_plot_names(df: pd.DataFrame, return_mapping: bool=False,
+def make_plot_names_st(df: pd.DataFrame, return_mapping: bool=False,
                     named_stars: list[str]=NAMED_STARS) -> pd.DataFrame:
     
     if len(NAMED_STARS) == 0:
@@ -105,20 +114,45 @@ def make_plot_names(df: pd.DataFrame, return_mapping: bool=False,
     return df_all_plot_name
 
 
+def make_plot_names_pl(df: pd.DataFrame, return_mapping: bool=False,
+                    named_planets: list[str]=NAMED_PLANETS) -> pd.DataFrame:
+    
+    pl_names = pd.Series(named_planets, name="pl_name")
+    
+    df_fltr = pd.merge(df, pl_names, how="inner", on="pl_name")[["pl_name"]]
+    df_fltr["plot_name"] = np.asarray(df_fltr.groupby("pl_name").ngroup() + 1, dtype=int)
+    df_map = df_fltr[["plot_name", "pl_name"]]
+    name_mapping = df_map.to_dict(orient="split")["data"]
+
+    df_all_plot_name = pd.merge(df, df_map, how="left", on="pl_name")["plot_name"]
+    df_all_plot_name.fillna("", inplace=True)
+
+    if return_mapping:
+        return df_all_plot_name, name_mapping
+    return df_all_plot_name
+
+
 def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
               xlim: tuple[float]=None, ylim: tuple[float]=None,
-              named_stars: list[str]=None, names_table: bool=False,
-              logy: bool=False, bottom_adj: float=0.125, left_adj: float=0.08,
-              leg_loc: int=4, include_sol: bool=False, **kwargs) -> None:
+              named_objs: list[str]=None, names_table: bool=False,
+              names_st: bool=True, logy: bool=False, bottom_adj: float=0.125,
+              left_adj: float=0.08, leg_loc: int=4, include_sol: bool=False,
+              **kwargs) -> None:
 
     df = df.copy()
 
     if named_stars is not None:
         show_names = True
         if names_table:
-            df["plot_name"], name_mapping = make_plot_names(df, return_mapping=True, named_stars=named_stars)
+            if names_st:
+                df["plot_name"], name_mapping = make_plot_names_st(df, return_mapping=True, named_stars=named_objs)
+            else:
+                df["plot_name"], name_mapping = make_plot_names_pl(df, return_mapping=True, named_planets=named_objs)
         else:
-            df["plot_name"] = make_plot_names(df, return_mapping=False, named_stars=named_stars)
+            if names_st:
+                df["plot_name"] = make_plot_names_st(df, return_mapping=False, named_stars=named_objs)
+            else:
+                df["plot_name"] = make_plot_names_pl(df, return_mapping=False, named_planets=named_objs)
     else:
         show_names = False
         names_table = False
@@ -221,7 +255,9 @@ def add_solar_system_planets(df: pd.DataFrame) -> pd.DataFrame:
         "habitable": [1, 1, 1]
     })
 
+    df["plot_name"] = df["plot_name"].apply(lambda x: str(int(x)) if isinstance(x, (float, int)) else x)
     return pd.concat([df, sol], ignore_index=True)
+
 
 if __name__ == "__main__":
 
@@ -229,6 +265,7 @@ if __name__ == "__main__":
     # ylim = (0.0, None)
     group = "mass_class"
     add_sol = True
+    names_st = False
 
     xlim_a = (0.0, 5.0)
     ylim_a = (0.06, 60.0)
@@ -239,31 +276,38 @@ if __name__ == "__main__":
     df = pd.read_csv('current-exo-data/alfven_data.csv')
     df_h = df[df["habitable"] == 1].reset_index()
 
-    named_stars = df_h[df_h[group] == 1]["hostname"].drop_duplicates().to_list()
+    named_stars = df_h[(df_h[group] == 1) & (df_h["orbit2alfven"] > 1)]["hostname"].drop_duplicates().to_list()
     named_stars.sort()
+
+    named_planets = df_h[(df_h[group] == 1) & (df_h["orbit2alfven"] > 1)]["pl_name"].drop_duplicates().to_list()
+    named_planets.sort()
+
+    named_objs = named_stars if names_st else named_planets
+    plot_kwargs = {"alpha": 0.5, "s": 15}
 
     # master plots
     save_path_m1 = "imgs/Fig1.png"
-    save_path_m1 = None
     plot_proc(df, group=group, save_path=save_path_m1, xlim=xlim_h,
-        ylim=ylim_h, named_stars=None, logy=True, plot_err=False,
-        names_table=False, color_list=COLORS_1, reverse_grp=True,
-        highlight_habitable=True, include_sol=True)
+        ylim=ylim_h, named_objs=None, logy=True, plot_err=False,
+        names_table=False, names_st=names_st, color_list=COLORS_1,
+        reverse_grp=True, highlight_habitable=True, include_sol=True,
+        **plot_kwargs)
     
 
-    save_path_m2 = "imgs/Fig2_TERRAN.png"
+    save_path_m2 = "imgs/Fig2.png"
     plot_proc(df_h, group=group, save_path=save_path_m2, xlim=xlim_h,
-        ylim=ylim_h, named_stars=named_stars, logy=True, plot_err=False,
-        names_table=True, color_list=COLORS_1, reverse_grp=True,
-        highlight_habitable=False, xnudge=0.01, ynudge=0.01, include_sol=True)
+        ylim=ylim_h, named_objs=named_objs, logy=True, plot_err=False,
+        names_table=True, names_st=names_st, color_list=COLORS_1,
+        reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
+        include_sol=True, **plot_kwargs)
 
 
-    save_path_m3 = "imgs/Fig3_TERRAN.png"
+    save_path_m3 = "imgs/Fig3.png"
     plot_err = [False, True, False, False]
-
     plot_proc(df_h, group=group, save_path=save_path_m3, xlim=xlim_h,
-        ylim=ylim_h, named_stars=named_stars, logy=True, plot_err=plot_err,
-        names_table=True, color_list=COLORS_1, reverse_grp=True,
-        highlight_habitable=False, xnudge=0.01, ynudge=0.01, include_sol=True)
+        ylim=ylim_h, named_objs=named_objs, logy=True, plot_err=plot_err,
+        names_table=True, names_st=names_st, color_list=COLORS_1,
+        reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
+        include_sol=True, **plot_kwargs)
 
     

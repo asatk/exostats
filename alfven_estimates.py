@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 
 
@@ -24,7 +23,6 @@ def taucVK(V, K):
 
     if isinstance(x, pd.Series):
         x.loc[np.fabs(V - K - 4.05) > 2.95] = np.nan
-        # print(len(x[x.isnull()]))
         return x
     
     if np.fabs(V - K - 4.05) <= 2.95:
@@ -59,7 +57,6 @@ def taucM(M):
 
     if isinstance(x, pd.Series):
         x.loc[np.fabs(M - 0.72) > 0.64] = np.nan
-        # print(len(x[x.isnull()]))
         return x
 
     if np.fabs(M - 0.72) <= 0.64:
@@ -69,10 +66,11 @@ def taucM(M):
 
 
 def dtaucM(M, dM):
-    return taucM(M) * LN10 * np.sqrt(np.power(dAM, 2.) +
-                                     np.power(M * dBM, 2.) +
-                                     np.power(np.power(M, 2.) * dCM, 2.) +
-                                     np.power((2 * M * CM + BM) * dM, 2.))
+    return taucM(M) * LN10 * np.sqrt(
+        np.power(dAM, 2.) +
+        np.power(M * dBM, 2.) +
+        np.power(np.power(M, 2.) * dCM, 2.) +
+        np.power((2 * M * CM + BM) * dM, 2.))
     
 
 def RoM(Prot, M):
@@ -93,19 +91,28 @@ def dRoAvg(dRoVK, dRoM):
 
 
 def chooseRo(RoVK, RoM):
-    if RoVK != np.nan:
-        return RoVK
-    elif RoM != np.nan:
-        return RoM
-    return np.nan
+    
+    where_rovk_notnull = RoVK.notnull()
+    where_rom_notnull = RoM.notnull()
+    
+    Ro = np.zeros_like(RoVK)
+    Ro[:] = np.nan
+    Ro[where_rom_notnull] = RoM[where_rom_notnull]
+    Ro[where_rovk_notnull] = RoVK[where_rovk_notnull]
+
+    return pd.Series(Ro, name="Ro", index=RoVK.index)
 
 
 def choosedRo(RoVK, RoM, dRoVK, dRoM):
-    if RoVK is not np.nan:
-        return dRoVK
-    elif RoM is not np.nan:
-        return dRoM
-    return np.nan
+    where_rovk_notnull = RoVK.notnull()
+    where_rom_notnull = RoM.notnull()
+    
+    dRo = np.zeros_like(RoVK)
+    dRo[:] = np.nan
+    dRo[where_rom_notnull] = dRoM[where_rom_notnull]
+    dRo[where_rovk_notnull] = dRoVK[where_rovk_notnull]
+
+    return pd.Series(dRo, name="dRo", index=RoVK.index)
 
 
 prot_sol = 27.
@@ -129,15 +136,17 @@ dr = 0.13
 # radius scaling (s = -1.38, B)
 """
 def ra_schrijver(ro, rad):
-    return ra_sol * np.real(pow(ro / ro_sol, s * r) * np.power(rad / r_sol, 2 * r))
+    return ra_sol * np.real(np.power(ro / ro_sol, s * r) * 
+                            np.power(rad / r_sol, 2 * r))
 
 def dra(ro, rad, dro, drad):
-    return ra_schrijver(ro, rad) * np.sqrt(np.power(dra_sol / ra_sol, 2.) +
-                                           np.power(s * r * dro / ro, 2.) +
-                                           np.power(s * r * dro_sol / ro_sol, 2.) +
-                                           np.power(2 * r * drad / rad, 2.) +
-                                           np.power(r * np.log(ro / ro_sol) * ds, 2.) +
-                                           np.power((s * np.log(ro / ro_sol) + 2 * np.log(rad)) * dr, 2.))
+    return ra_schrijver(ro, rad) * np.sqrt(
+        np.power(dra_sol / ra_sol, 2.) +
+        np.power(s * r * dro / ro, 2.) +
+        np.power(s * r * dro_sol / ro_sol, 2.) +
+        np.power(2 * r * drad / rad, 2.) +
+        np.power(r * np.log(ro / ro_sol) * ds, 2.) +
+        np.power((s * np.log(ro / ro_sol) + 2 * np.log(rad)) * dr, 2.))
 """
 
 # no radius scaling (s = -1.19, flux)
@@ -146,73 +155,65 @@ def ra_schrijver(ro):
        
 
 def dra_schrijver(ro, dro):
-    return ra_schrijver(ro) * np.sqrt(np.power(dra_sol / ra_sol, 2.) +
-                                           np.power(s * r * dro / ro, 2.) +
-                                           np.power(s * r * dro_sol / ro_sol, 2.) +
-                                           np.power(r * np.log(ro / ro_sol) * ds, 2.) +
-                                           np.power((s * np.log(ro / ro_sol)) * dr, 2.))
+    return ra_schrijver(ro) * np.sqrt(
+        np.power(dra_sol / ra_sol, 2.) +
+        np.power(s * r * dro / ro, 2.) +
+        np.power(s * r * dro_sol / ro_sol, 2.) +
+        np.power(r * np.log(ro / ro_sol) * ds, 2.) +
+        np.power((s * np.log(ro / ro_sol)) * dr, 2.))
 
 
 def measured_uncertainties(nasa_exo: pd.DataFrame):
     x = nasa_exo
-    nasa_exo["pl_bmasseerr"] = np.max([x["pl_bmasseerr1"],np.fabs(x["pl_bmasseerr2"])], axis=0)
-    nasa_exo["pl_orbsmaxerr"] = np.max([x["pl_orbsmaxerr1"],np.fabs(x["pl_orbsmaxerr2"])], axis=0)
-    nasa_exo["pl_orbeccenerr"] = np.max([x["pl_orbeccenerr1"],np.fabs(x["pl_orbeccenerr2"])], axis=0)
-    nasa_exo["pl_radeerr"] = np.max([x["pl_radeerr1"],np.fabs(x["pl_radeerr2"])], axis=0)
-    nasa_exo["st_masserr"] = np.max([x["st_masserr1"],np.fabs(x["st_masserr2"])], axis=0)
-    nasa_exo["st_raderr"] = np.max([x["st_raderr1"],np.fabs(x["st_raderr2"])], axis=0)
-    nasa_exo["sy_disterr"] = np.max([x["sy_disterr1"],np.fabs(x["sy_disterr2"])], axis=0)
-    nasa_exo["sy_kmagerr"] = np.max([x["sy_kmagerr1"],np.fabs(x["sy_kmagerr2"])], axis=0)
-    nasa_exo["sy_vmagerr"] = np.max([x["sy_vmagerr1"],np.fabs(x["sy_vmagerr2"])], axis=0)
-
-    # nasa_exo['pl_bmasseerr'] = nasa_exo.apply(lambda x: np.max([x['pl_bmasseerr1'],np.fabs(x['pl_bmasseerr2'])]), axis=1)
-    # nasa_exo['pl_orbsmaxerr'] = nasa_exo.apply(lambda x: np.max([x['pl_orbsmaxerr1'],np.fabs(x['pl_orbsmaxerr2'])]), axis=1)
-    # nasa_exo['pl_orbeccenerr'] = nasa_exo.apply(lambda x: np.max([x['pl_orbeccenerr1'],np.fabs(x['pl_orbeccenerr2'])]), axis=1)
-    # nasa_exo['pl_radeerr'] = nasa_exo.apply(lambda x: np.max([x['pl_radeerr1'],np.fabs(x['pl_radeerr2'])]), axis=1)
-    # nasa_exo['st_masserr'] = nasa_exo.apply(lambda x: np.max([x['st_masserr1'],np.fabs(x['st_masserr2'])]), axis=1)
-    # nasa_exo['st_raderr'] = nasa_exo.apply(lambda x: np.max([x['st_raderr1'],np.fabs(x['st_raderr2'])]), axis=1)
-    # nasa_exo['sy_disterr'] = nasa_exo.apply(lambda x: np.max([x['sy_disterr1'],np.fabs(x['sy_disterr2'])]), axis=1)
-    # nasa_exo['sy_kmagerr'] = nasa_exo.apply(lambda x: np.max([x['sy_kmagerr1'],np.fabs(x['sy_kmagerr2'])]), axis=1)
-    # nasa_exo['sy_vmagerr'] = nasa_exo.apply(lambda x: np.max([x['sy_vmagerr1'],np.fabs(x['sy_vmagerr2'])]), axis=1)
+    nasa_exo["pl_bmasseerr"] = \
+        np.max([x["pl_bmasseerr1"],np.fabs(x["pl_bmasseerr2"])], axis=0)
+    nasa_exo["pl_orbsmaxerr"] = \
+        np.max([x["pl_orbsmaxerr1"],np.fabs(x["pl_orbsmaxerr2"])], axis=0)
+    nasa_exo["pl_orbeccenerr"] = \
+        np.max([x["pl_orbeccenerr1"],np.fabs(x["pl_orbeccenerr2"])], axis=0)
+    nasa_exo["pl_radeerr"] = \
+        np.max([x["pl_radeerr1"],np.fabs(x["pl_radeerr2"])], axis=0)
+    nasa_exo["st_masserr"] = \
+        np.max([x["st_masserr1"],np.fabs(x["st_masserr2"])], axis=0)
+    nasa_exo["st_raderr"] = \
+        np.max([x["st_raderr1"],np.fabs(x["st_raderr2"])], axis=0)
+    nasa_exo["sy_disterr"] = \
+        np.max([x["sy_disterr1"],np.fabs(x["sy_disterr2"])], axis=0)
+    nasa_exo["sy_kmagerr"] = \
+        np.max([x["sy_kmagerr1"],np.fabs(x["sy_kmagerr2"])], axis=0)
+    nasa_exo["sy_vmagerr"] = \
+        np.max([x["sy_vmagerr1"],np.fabs(x["sy_vmagerr2"])], axis=0)
+    
     return nasa_exo
 
 
 def estimate_rossby(prot_data: pd.DataFrame):
-    # prot_data['RoVK'] = prot_data.apply(lambda x: RoVK(x['Prot'], x['sy_vmag'], x['sy_kmag']), axis=1)
-    # prot_data['dRoVK'] = prot_data.apply(lambda x: dRoVK(x['Prot'], x['sy_vmag'], x['sy_kmag'], x['e_Prot'], x['sy_vmagerr'], x['sy_kmagerr']), axis=1)
-    # prot_data['TaucVK'] = prot_data.apply(lambda x: taucVK(x['sy_vmag'], x['sy_kmag']), axis=1)
-    # prot_data['dTaucVK'] = prot_data.apply(lambda x: dtaucVK(x['sy_vmag'], x['sy_kmag'], x['sy_vmagerr'], x['sy_kmagerr']), axis=1)
-    # prot_data['RoM'] = prot_data.apply(lambda x: RoM(x['Prot'], x['st_mass']), axis=1)
-    # prot_data['dRoM'] = prot_data.apply(lambda x: dRoM(x['Prot'], x['st_mass'], x['e_Prot'], x['st_masserr']), axis=1)
-    # prot_data['TaucM'] = prot_data.apply(lambda x: taucM(x['st_mass']), axis=1)
-    # prot_data['dTaucM'] = prot_data.apply(lambda x: dtaucM(x['st_mass'], x['st_masserr']), axis=1)
-    # prot_data['RoAvg'] = prot_data.apply(lambda x: RoAvg(x['RoVK'], x['RoM']), axis=1)
-    # prot_data['dRoAvg'] = prot_data.apply(lambda x: dRoAvg(x['dRoVK'], x['dRoM']), axis=1)
-
-    # #choose which Ro is used in plots - could probably be done more elegantly
-    # prot_data['Ro'] = prot_data.apply(lambda x: chooseRo(x['RoVK'], x['RoM']), axis=1)
-    # prot_data['dRo'] = prot_data.apply(lambda x: choosedRo(x["RoVK"], x["RoM"], x['dRoVK'], x['dRoM']), axis=1)
-
     x = prot_data
-    prot_data["RoVK"] = RoVK(x["Prot"], x["sy_vmag"], x["sy_kmag"])
-    prot_data["dRoVK"] = dRoVK(x["Prot"], x["sy_vmag"], x["sy_kmag"],
-                               x["e_Prot"], x["sy_vmagerr"], x["sy_kmagerr"])
-    prot_data["TaucVK"] = taucVK(x["sy_vmag"], x["sy_kmag"])
-    prot_data["dTaucVK"] = dtaucVK(x["sy_vmag"], x["sy_kmag"], x["sy_vmagerr"],
-                                   x["sy_kmagerr"])
-    prot_data["RoM"] = RoM(x["Prot"], x["st_mass"])
-    prot_data["dRoM"] = dRoM(x["Prot"], x["st_mass"], x["e_Prot"],
-                             x["st_masserr"])
-    prot_data["TaucM"] = taucM(x["st_mass"])
-    prot_data["dTaucM"] = dtaucM(x["st_mass"], x["st_masserr"])
-    prot_data["RoAvg"] = RoAvg(x["RoVK"], x["RoM"])
-    prot_data["dRoAvg"] = dRoAvg(x["dRoVK"], x["dRoM"])
+    prot_data["RoVK"] = \
+        RoVK(x["Prot"], x["sy_vmag"], x["sy_kmag"])
+    prot_data["dRoVK"] = \
+        dRoVK(x["Prot"], x["sy_vmag"], x["sy_kmag"], x["e_Prot"],
+              x["sy_vmagerr"], x["sy_kmagerr"])
+    prot_data["TaucVK"] = \
+        taucVK(x["sy_vmag"], x["sy_kmag"])
+    prot_data["dTaucVK"] = \
+        dtaucVK(x["sy_vmag"], x["sy_kmag"], x["sy_vmagerr"], x["sy_kmagerr"])
+    prot_data["RoM"] = \
+        RoM(x["Prot"], x["st_mass"])
+    prot_data["dRoM"] = \
+        dRoM(x["Prot"], x["st_mass"], x["e_Prot"], x["st_masserr"])
+    prot_data["TaucM"] = \
+        taucM(x["st_mass"])
+    prot_data["dTaucM"] = \
+        dtaucM(x["st_mass"], x["st_masserr"])
+    prot_data["RoAvg"] = \
+        RoAvg(x["RoVK"], x["RoM"])
+    prot_data["dRoAvg"] = \
+        dRoAvg(x["dRoVK"], x["dRoM"])
 
-    #choose which Ro is used in plots - could probably be done more elegantly
-    prot_data["Ro"] = prot_data.apply(lambda x: chooseRo(x["RoVK"], x["RoM"]), axis=1)
-    prot_data["dRo"] = prot_data.apply(lambda x: choosedRo(x["RoVK"], x["RoM"], x["dRoVK"], x["dRoM"]), axis=1)
-
-    # print(prot_data["dTaucVK"])
+    # selects RoVK over RoM if either present
+    prot_data["Ro"] = chooseRo(x["RoVK"], x["RoM"])
+    prot_data["dRo"] = choosedRo(x["RoVK"], x["RoM"], x["dRoVK"], x["dRoM"])
 
     return prot_data
 
@@ -223,8 +224,8 @@ def estimate_alfven(data: pd.DataFrame):
     x = data
     data["rperi"] = x["pl_orbsmax"] * (1 - x["pl_orbeccen"])
     data["drperi"] = np.sqrt(np.nansum([
-        pow(x["pl_orbsmaxerr"] * (1 - x["pl_orbeccen"]), 2.),
-        pow(x["pl_orbsmax"] * x["pl_orbeccenerr"], 2.)]))
+        np.power(x["pl_orbsmaxerr"] * (1 - x["pl_orbeccen"]), 2.),
+        np.power(x["pl_orbsmax"] * x["pl_orbeccenerr"], 2.)], axis=0))
 
     # Calculate Shrijver scaling relation for mean AS radius
 
@@ -343,6 +344,9 @@ def calculate_exos():
     # Estimate Ro from Wright et. al. 2018 Tc formulae
     prot_data = estimate_rossby(prot_data)
 
+    print("[taucVK: out of range] {}".format(len(prot_data[prot_data["TaucVK"].isnull()])))
+    print("[taucM: out of range] {}".format(len(prot_data[prot_data["TaucM"].isnull()])))
+
     # List exoplanets that have all of the relevant stats: Ro, a, e 
     data_col_list = ["pl_name", "hostname", "pl_letter", "pl_orbsmax","pl_orbsmaxerr","pl_orbeccen",
         "pl_orbeccenerr","pl_rade","pl_bmasse","pl_bmassprov","st_rad",
@@ -368,6 +372,7 @@ if __name__ == "__main__":
     print_brief = True
 
     alfven_data = calculate_exos()
+
     chz_data = alfven_data[alfven_data["habitable"] == 1]
     chz_mhc_data = alfven_data[(alfven_data["MHC"] > 1.0) & (alfven_data["habitable"] == 1)]
 
@@ -387,6 +392,6 @@ if __name__ == "__main__":
     CHZ_names = chz_data[["pl_name", "Ro", "MHC"]]
     CHZ_names.to_csv("current-exo-data/CHZ_names.csv", index=False)
 
-    CHZ_MHC_names = chz_data[["pl_name", "Ro", "MHC"]]
+    CHZ_MHC_names = chz_mhc_data[["pl_name", "Ro", "MHC"]]
     CHZ_MHC_names.to_csv("current-exo-data/CHZ_MHC_names.csv", index=False)
     

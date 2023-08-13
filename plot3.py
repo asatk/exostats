@@ -28,7 +28,7 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
             class_list: list[str]=CLASS_LABELS, **kwargs):
 
     x = np.array(df.Ro)
-    y = np.array(df.orbit2alfven)
+    y = np.array(df.MHC)
     grp_num = df.mass_class.iat[0]  # TODO >>>> MUST CHANGE THIS
     color = color_list[grp_num]
     label = class_list[grp_num]
@@ -45,7 +45,7 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
     
     if plot_err:
         xerr = np.array(df.dRo)
-        yerr = np.array(df.dorbit2alfven)
+        yerr = np.array(df.dMHC)
         ax.errorbar(x, y, xerr=xerr, yerr=yerr, linestyle="None", ecolor="#333333", elinewidth=1.1, alpha=0.4, zorder=0.0)
 
     if show_names:
@@ -85,7 +85,8 @@ def _make_name(row: pd.DataFrame) -> str:
 
 
 def make_plot_names_st(df: pd.DataFrame, return_mapping: bool=False,
-                    named_stars: list[str]=NAMED_STARS) -> pd.DataFrame:
+                    named_stars: list[str]=NAMED_STARS,
+                    sort_col: str="hostname") -> pd.DataFrame:
     
     if len(NAMED_STARS) == 0:
         df_all_plot_name = pd.Series(["" for _ in df.iterrows()])
@@ -95,10 +96,9 @@ def make_plot_names_st(df: pd.DataFrame, return_mapping: bool=False,
     
     hostnames = pd.Series(named_stars, name="hostname")
     
-    df_fltr = pd.merge(df, hostnames, how="inner", on="hostname")[["hostname", "pl_name", "pl_letter"]]
+    df_fltr = pd.merge(df, hostnames, how="inner", on="hostname").sort_values(by=sort_col)[["hostname", "pl_name", "pl_letter"]]
     df_fltr["grp_num"] = df_fltr.groupby("hostname").ngroup() + 1
     df_map = df_fltr.drop_duplicates(subset="hostname")[["grp_num", "hostname"]]
-    # name_mapping = [{entry["grp_num"]: entry["hostname"]} for entry in df_map.to_dict(orient="records")]
     name_mapping = df_map.to_dict(orient="split")["data"]
     
     df_grp_len = df_fltr.groupby("hostname")["grp_num"].count()
@@ -115,12 +115,13 @@ def make_plot_names_st(df: pd.DataFrame, return_mapping: bool=False,
 
 
 def make_plot_names_pl(df: pd.DataFrame, return_mapping: bool=False,
-                    named_planets: list[str]=NAMED_PLANETS) -> pd.DataFrame:
+                    named_planets: list[str]=NAMED_PLANETS,
+                    sort_col: str="pl_name") -> pd.DataFrame:
     
     pl_names = pd.Series(named_planets, name="pl_name")
-    
-    df_fltr = pd.merge(df, pl_names, how="inner", on="pl_name")[["pl_name"]]
-    df_fltr["plot_name"] = np.asarray(df_fltr.groupby("pl_name").ngroup() + 1, dtype=int)
+
+    df_fltr = pd.merge(df, pl_names, how="inner", on="pl_name").sort_values(by=sort_col)[["pl_name"]]
+    df_fltr["plot_name"] = np.asarray(df_fltr.groupby("pl_name", sort=False).ngroup() + 1, dtype=int)
     df_map = df_fltr[["plot_name", "pl_name"]]
     name_mapping = df_map.to_dict(orient="split")["data"]
 
@@ -143,16 +144,25 @@ def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
 
     if named_stars is not None:
         show_names = True
+        sort_col = kwargs.get("sort_col", "pl_name")
         if names_table:
             if names_st:
-                df["plot_name"], name_mapping = make_plot_names_st(df, return_mapping=True, named_stars=named_objs)
+                df["plot_name"], name_mapping = \
+                    make_plot_names_st(df, return_mapping=True,
+                        named_stars=named_objs, sort_col=sort_col)
             else:
-                df["plot_name"], name_mapping = make_plot_names_pl(df, return_mapping=True, named_planets=named_objs)
+                df["plot_name"], name_mapping = \
+                    make_plot_names_pl(df, return_mapping=True,
+                        named_planets=named_objs, sort_col=sort_col)
         else:
             if names_st:
-                df["plot_name"] = make_plot_names_st(df, return_mapping=False, named_stars=named_objs)
+                df["plot_name"] = \
+                    make_plot_names_st(df, return_mapping=False,
+                        named_stars=named_objs, sort_col=sort_col)
             else:
-                df["plot_name"] = make_plot_names_pl(df, return_mapping=False, named_planets=named_objs)
+                df["plot_name"] = \
+                    make_plot_names_pl(df, return_mapping=False,
+                        named_planets=named_objs, sort_col=sort_col)
     else:
         show_names = False
         names_table = False
@@ -169,7 +179,7 @@ def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
     fig, ax1 = plt.subplots(nrows=1, ncols=1, figsize=(10,5))
     
     x = np.array(df["Ro"])
-    y = np.array(df["orbit2alfven"])
+    y = np.array(df["MHC"])
 
     if xlim is not None:
         xmin = xlim[0]
@@ -218,8 +228,6 @@ def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
     hand_u = hand_u[ind_shuffle]
 
     # find better way to match the order of legend labels by matching w labels list idx
-
-    
     ax1.legend(hand_u, labl_u, loc=leg_loc)
 
     if names_table:
@@ -240,7 +248,7 @@ def add_solar_system_planets(df: pd.DataFrame) -> pd.DataFrame:
     ra_sol = 0.1
     dra_sol = 0.02
     r_p_venus = 0.718
-    r_p_earth = 1.0
+    r_p_earth = 0.983
     r_p_mars = 1.381
     
     sol = pd.DataFrame({
@@ -249,8 +257,8 @@ def add_solar_system_planets(df: pd.DataFrame) -> pd.DataFrame:
         "plot_name": ["Venus", "Earth", "Mars"],
         "Ro": [ro_sol, ro_sol, ro_sol],
         "dRo": [dro_sol, dro_sol, dro_sol],
-        "orbit2alfven": [r_p_venus / ra_sol, r_p_earth / ra_sol, r_p_mars / ra_sol],
-        "dorbit2alfven": [dra_sol, dra_sol, dra_sol],
+        "MHC": [r_p_venus / ra_sol, r_p_earth / ra_sol, r_p_mars / ra_sol],
+        "dMHC": [dra_sol, dra_sol, dra_sol],
         "mass_class": [1, 1, 0],
         "habitable": [1, 1, 1]
     })
@@ -276,13 +284,10 @@ if __name__ == "__main__":
     df = pd.read_csv('current-exo-data/alfven_data.csv')
     df_h = df[df["habitable"] == 1].reset_index()
 
-    named_stars = df_h[(df_h[group] == 1) & (df_h["orbit2alfven"] > 1)]["hostname"].drop_duplicates().to_list()
-    named_stars.sort()
-
-    named_planets = df_h[(df_h[group] == 1) & (df_h["orbit2alfven"] > 1)]["pl_name"].drop_duplicates().to_list()
-    named_planets.sort()
-
+    named_stars = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["hostname"].drop_duplicates().to_list()
+    named_planets = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["pl_name"].to_list()
     named_objs = named_stars if names_st else named_planets
+
     plot_kwargs = {"alpha": 0.5, "s": 15}
 
     # master plots
@@ -297,17 +302,15 @@ if __name__ == "__main__":
     save_path_m2 = "imgs/Fig2.png"
     plot_proc(df_h, group=group, save_path=save_path_m2, xlim=xlim_h,
         ylim=ylim_h, named_objs=named_objs, logy=True, plot_err=False,
-        names_table=True, names_st=names_st, color_list=COLORS_1,
+        names_table=False, names_st=names_st, color_list=COLORS_1,
         reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
         include_sol=True, **plot_kwargs)
 
 
-    save_path_m3 = "imgs/Fig3.png"
+    save_path_m3 = "imgs/Fig2_ebars.png"
     plot_err = [False, True, False, False]
     plot_proc(df_h, group=group, save_path=save_path_m3, xlim=xlim_h,
         ylim=ylim_h, named_objs=named_objs, logy=True, plot_err=plot_err,
-        names_table=True, names_st=names_st, color_list=COLORS_1,
+        names_table=False, names_st=names_st, color_list=COLORS_1,
         reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
-        include_sol=True, **plot_kwargs)
-
-    
+        include_sol=True, sort_col="MHC", **plot_kwargs)

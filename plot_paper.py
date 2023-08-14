@@ -277,8 +277,10 @@ if __name__ == "__main__":
 
     xlim_a = (0.0, 5.0)
     ylim_a = (0.06, 60.0)
+    ylim_a = None
     xlim_h = (0.0, 4.2)
     ylim_h = (0.2, 30.0)
+    ylim_h = None
 
     # Load planet habitability and plotting data
     df = pd.read_csv('current-exo-data/alfven_data.csv')

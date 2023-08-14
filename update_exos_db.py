@@ -5,7 +5,7 @@ from os import system
 
 # FETCH NEW EXO DATA:
 # > cat nasa_exo_query.txt | xargs wget -o nasa_exo_PSCP.csv
-fetch_DBs = False
+fetch_DBs = True
 update_exos = True
 load_exos = True
 
@@ -37,6 +37,7 @@ DATA/COLUMNS THAT ARE NEEDED
    set offered by the paper offering the Prot
 '''
 
+
 def init_nasa_exo():
 
     # Load NASA exoplanet database
@@ -60,11 +61,11 @@ def init_nasa_exo():
     nasa_exo["GAIA"] = nasa_exo.apply(lambda x: int(x["gaia_id"][9:]) if re.match(r"^Gaia DR2 \d+$", str(x["gaia_id"])) is not None else np.nan, axis=1)
 
     nasa_exo.to_csv("current-exo-data/nasa_exo.csv", index=False)
-
     return nasa_exo
 
+
 # Update the short-list of exoplanet systems/stars shared by mcq13 and nasa
-def update_exos_mcq13(nasa_exo):
+def update_exos_mcq13(nasa_exo: pd.DataFrame):
 
     # Load McQuillan 2013 KOI stellar rotation rate survey
     mcq13_kois = pd.read_csv("tables/prot_mcq_2013.dat", sep="\s+")
@@ -78,8 +79,9 @@ def update_exos_mcq13(nasa_exo):
     exos_mcq13.drop_duplicates(subset="hostname", inplace=True)
     exos_mcq13.to_csv("current-exo-data/hosts_mcq13.csv", index=False)
     return exos_mcq13
-    
-def update_exos_mcq14(nasa_exo):
+
+
+def update_exos_mcq14(nasa_exo: pd.DataFrame):
 
     # Load McQuillan 2014 KIC stellar rotation rate survey
     mcq14_kics = pd.read_csv("tables/prot_mcq_2014.dat", sep="\s+")
@@ -93,7 +95,8 @@ def update_exos_mcq14(nasa_exo):
     exos_mcq14.to_csv("current-exo-data/hosts_mcq14.csv", index=False)
     return exos_mcq14
 
-def update_exos_mar20(nasa_exo):
+
+def update_exos_mar20(nasa_exo: pd.DataFrame):
 
     # Load Martin 2020 TOI stellar rotation period survey
     mar20 = pd.read_csv("tables/prot_martin_2020_tic.csv", usecols=[0,1,2,3,4])
@@ -114,8 +117,9 @@ def update_exos_mar20(nasa_exo):
     exos_mar20.to_csv("current-exo-data/hosts_mar20.csv", index=False)
     return exos_mar20
 
+
 # fn can be np.mean/min/max, lambda x: np.nan
-def select_prot_martin(prot_str, fn=np.min):
+def select_prot_martin(prot_str: str, fn=np.min):
     if "/" in str(prot_str):
         prots = prot_str.split("/")
         protf = []
@@ -124,7 +128,10 @@ def select_prot_martin(prot_str, fn=np.min):
         return fn(protf)
     else: return float(prot_str)
 
-def update_exos_custom(nasa_exo):
+
+def update_exos_custom(nasa_exo: pd.DataFrame):
+
+    # Load Armstring 2016 Kepler flare, rotation, and activity of habitable pl survey
     arm16_prot = pd.read_csv("tables/custom_prot.txt", sep="\s+", header=14, nrows=7)
     
     arm16_prot = arm16_prot[["hostname","prot_acf","eprot_acf"]]
@@ -137,7 +144,10 @@ def update_exos_custom(nasa_exo):
     exos_arm16.to_csv("current-exo-data/hosts_arm16.csv", index=False)
     return exos_arm16
 
-def update_exos_lu22(nasa_exo):
+
+def update_exos_lu22(nasa_exo: pd.DataFrame):
+
+    # Load Lu 2022 ZTF rotation period survey
     lu22_gaia = pd.read_csv("tables/prot_lu_gaia.txt", header=21, sep="\s+")
 
     lu22_gaia = lu22_gaia[["GAIA","Prot"]]
@@ -153,7 +163,10 @@ def update_exos_lu22(nasa_exo):
     exos_lu22.to_csv("current-exo-data/hosts_lu22.csv",index=False)
     return exos_lu22
 
-def update_exos_nasa(nasa_exo):
+
+def update_exos_nasa(nasa_exo: pd.DataFrame):
+
+    # Load NASA Exoplanet Archive rotation period entries
     exos_nasa = nasa_exo[nasa_exo.st_rotp.notnull()][["hostname", "st_rotp", "st_rotperr1", "st_rotperr2"]]
     exos_nasa["st_rotperr"] = nasa_exo.apply(lambda r: np.max([r.st_rotperr1, np.fabs(r.st_rotperr2)]), axis=1)
     exos_nasa.rename(columns={"st_rotp": "Prot", "st_rotperr": "e_Prot"}, inplace=True)
@@ -162,46 +175,37 @@ def update_exos_nasa(nasa_exo):
     exos_nasa.insert(len(exos_nasa.columns), "db", "nasa")
 
     exos_nasa.to_csv("current-exo-data/hosts_nasa.csv", index=False)
-
     return exos_nasa
 
-def update_exos_habitable(nasa_exo):
+
+def update_exos_habitable(nasa_exo: pd.DataFrame):
     habitable = pd.read_csv("tables/habitable.txt", header=1)
-
     exos_habitable = pd.merge(nasa_exo, habitable, how="inner", on="pl_name")[["hostname", "pl_name"]]
-
     exos_habitable.to_csv("current-exo-data/exos_habitable.csv", index=False)
 
-def update_exos_hill23(nasa_exo):
+
+def update_exos_hill23(nasa_exo: pd.DataFrame):
     # decide what to do w all the new measurements
     # check Hill - if it just uses NEA then it shouldn't mater
     # i guess we should also compare via computer too
     hill23 = pd.read_csv("tables/CHZ_hill23.csv")
     hill23 = hill23[["Planet"]]
     hill23.rename(columns={"Planet": "pl_name"}, inplace=True)
-
     exos_hill23 = pd.merge(nasa_exo, hill23, how="inner", on="pl_name")[["hostname", "pl_name"]]
-
     exos_hill23.to_csv("current-exo-data/exos_hill23.csv", index=False)
 
 
 if __name__ == "__main__":
-    
-    if fetch_DBs:
 
+    if fetch_DBs:
         print("Updating Planetary Systems Composite Parameters (pscomppars) database!")
-        # Get updated Planetary Systems Combined Parameters DB
         system("cat nasa_exo_query.txt | xargs wget -o log_PSCP -O tables/nasa_exo_PSCP.csv")
 
         print("Updating Kepler confirmed planets (kepnames) database!")
         system("cat nasa_exo_kep_query.txt | xargs wget -o log_kep -O tables/nasa_exo_kep.csv")
 
     if update_exos:
-
         nasa_exo = init_nasa_exo()
-
-        print("[nasa_exo]\nplanets {}\n".format(nasa_exo["pl_name"].count()))
-
         hosts_mcq13 = update_exos_mcq13(nasa_exo)
         hosts_mcq14 = update_exos_mcq14(nasa_exo)
         hosts_arm16 = update_exos_custom(nasa_exo)
@@ -211,6 +215,7 @@ if __name__ == "__main__":
         update_exos_habitable(nasa_exo)
         update_exos_hill23(nasa_exo)
 
+        print("[nasa_exo]\nplanets {}\n".format(nasa_exo["pl_name"].count()))
         print("[mcq13]\nProt {}\ne_Prot {}\n".format(
             hosts_mcq13["Prot"].count(), hosts_mcq13["e_Prot"].count()))
         print("[mcq14]\nProt {}\ne_Prot {}\n".format(

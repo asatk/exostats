@@ -90,25 +90,24 @@ def dRoAvg(dRoVK, dRoM):
     return np.sqrt(np.nansum([np.power(dRoVK, 2.),np.power(dRoM, 2.)]))
 
 
-def chooseRo(RoVK, RoM):
+def chooseRo(RoVK: pd.Series, RoM: pd.Series) -> pd.Series:
     
     where_rovk_notnull = RoVK.notnull()
     where_rom_notnull = RoM.notnull()
     
-    Ro = np.zeros_like(RoVK)
-    Ro[:] = np.nan
+    Ro = np.nan + np.zeros_like(RoVK)
     Ro[where_rom_notnull] = RoM[where_rom_notnull]
     Ro[where_rovk_notnull] = RoVK[where_rovk_notnull]
 
     return pd.Series(Ro, name="Ro", index=RoVK.index)
 
 
-def choosedRo(RoVK, RoM, dRoVK, dRoM):
+def choosedRo(RoVK: pd.Series, RoM: pd.Series, dRoVK: pd.Series,
+              dRoM: pd.Series) -> pd.Series:
     where_rovk_notnull = RoVK.notnull()
     where_rom_notnull = RoM.notnull()
     
-    dRo = np.zeros_like(RoVK)
-    dRo[:] = np.nan
+    dRo = np.nan + np.zeros_like(RoVK)
     dRo[where_rom_notnull] = dRoM[where_rom_notnull]
     dRo[where_rovk_notnull] = dRoVK[where_rovk_notnull]
 
@@ -163,7 +162,7 @@ def dra_schrijver(ro, dro):
         np.power((s * np.log(ro / ro_sol)) * dr, 2.))
 
 
-def measured_uncertainties(nasa_exo: pd.DataFrame):
+def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
     x = nasa_exo
     nasa_exo["pl_bmasseerr"] = \
         np.max([x["pl_bmasseerr1"],np.fabs(x["pl_bmasseerr2"])], axis=0)
@@ -187,7 +186,7 @@ def measured_uncertainties(nasa_exo: pd.DataFrame):
     return nasa_exo
 
 
-def estimate_rossby(prot_data: pd.DataFrame):
+def estimate_rossby(prot_data: pd.DataFrame) -> pd.DataFrame:
     x = prot_data
     prot_data["RoVK"] = \
         RoVK(x["Prot"], x["sy_vmag"], x["sy_kmag"])
@@ -218,7 +217,7 @@ def estimate_rossby(prot_data: pd.DataFrame):
     return prot_data
 
 
-def estimate_alfven(data: pd.DataFrame):
+def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     
     # Estimate value and uncertainty for periastron
     x = data
@@ -252,6 +251,7 @@ def estimate_alfven(data: pd.DataFrame):
     # TODO figugre out why??? was this just bc the ra formula w rad scal?
     # select out data where the Stellar Radius entry is non-empty
     alfven_data = alfven_data[alfven_data["st_rad"].notnull()]
+    print("no stellar rad: {}\n".format(len(alfven_data[alfven_data["st_rad"].isnull()]["st_rad"])))
     
     #optional: remove 99th quantile and bad vals
     # alfven_data = alfven_data[(alfven_data['Ro'] < np.quantile(alfven_data['Ro'], 0.99)) & (alfven_data['MHC'] < np.quantile(alfven_data['MHC'], 0.99))]
@@ -313,7 +313,7 @@ def rad_class(pl_rad):
         return -1
 
 
-def planet_classes(alfven_data: pd.DataFrame):
+def planet_classes(alfven_data: pd.DataFrame) -> pd.DataFrame:
 
     exos_habitable = pd.read_csv("current-exo-data/exos_habitable.csv")
     exos_hill23 = pd.read_csv("current-exo-data/exos_hill23.csv")
@@ -328,33 +328,37 @@ def planet_classes(alfven_data: pd.DataFrame):
     return alfven_data
 
 
-def calculate_exos():
+def calculate_exos() -> pd.DataFrame:
     nasa_exo = pd.read_csv("current-exo-data/nasa_exo.csv")
     nasa_exo = measured_uncertainties(nasa_exo)
     stars_prot = pd.read_csv("current-exo-data/hosts_prot.csv")
 
     # List exoplanets with a host star that has a rotation period + stats
-    prot_col_list = ["pl_name","hostname", "pl_letter", "Prot","e_Prot","pl_bmasse",
-        "pl_bmasseerr","pl_bmassprov","pl_rade","pl_radeerr","pl_orbsmax",
-        "pl_orbsmaxerr","pl_orbeccen","pl_orbeccenerr","sy_vmag","sy_vmagerr",
-        "sy_kmag","sy_kmagerr","st_rad","st_raderr","st_mass","st_masserr",
-        "sy_dist","sy_disterr","KOI","KIC","TIC","GAIA","db"]
-    prot_data = pd.merge(nasa_exo, stars_prot, how="inner", on="hostname", suffixes=("_x", None))[prot_col_list]
-    
+    prot_col_list = ["pl_name","hostname", "pl_letter", "Prot","e_Prot",
+        "pl_bmasse", "pl_bmasseerr", "pl_bmassprov", "pl_rade", "pl_radeerr",
+        "pl_orbsmax", "pl_orbsmaxerr", "pl_orbeccen", "pl_orbeccenerr",
+        "sy_vmag", "sy_vmagerr", "sy_kmag", "sy_kmagerr", "st_rad",
+        "st_raderr", "st_mass", "st_masserr", "sy_dist", "sy_disterr", "KOI",
+        "KIC", "TIC", "GAIA", "db"]
+    prot_data = pd.merge(nasa_exo, stars_prot, how="inner", on="hostname",
+                         suffixes=("_x", None))[prot_col_list]
+
     # Estimate Ro from Wright et. al. 2018 Tc formulae
     prot_data = estimate_rossby(prot_data)
 
-    print("[taucVK: out of range] {}".format(len(prot_data[prot_data["TaucVK"].isnull()])))
-    print("[taucM: out of range] {}".format(len(prot_data[prot_data["TaucM"].isnull()])))
+    # print("[taucVK: out of range] {}".format(len(prot_data[prot_data["TaucVK"].isnull()])))
+    # print("[taucM: out of range] {}".format(len(prot_data[prot_data["TaucM"].isnull()])))
 
     # List exoplanets that have all of the relevant stats: Ro, a, e 
-    data_col_list = ["pl_name", "hostname", "pl_letter", "pl_orbsmax","pl_orbsmaxerr","pl_orbeccen",
-        "pl_orbeccenerr","pl_rade","pl_bmasse","pl_bmassprov","st_rad",
-        "st_raderr","RoVK","RoM","RoAvg","Ro","dRoVK","dRoM","dRo","KOI","KIC","TIC","GAIA","db"]
+    data_col_list = ["pl_name", "hostname", "pl_letter", "pl_orbsmax",
+        "pl_orbsmaxerr", "pl_orbeccen", "pl_orbeccenerr", "pl_rade",
+        "pl_bmasse", "pl_bmassprov", "st_rad", "st_raderr", "RoVK", "RoM",
+        "RoAvg", "Ro", "dRoVK", "dRoM", "dRo", "KOI", "KIC", "TIC", "GAIA",
+        "db"]
     
     # Planets must have a calculable r_p - both a and e.
-    data = prot_data[prot_data["Ro"].notnull() & prot_data["pl_orbsmax"].notnull() & prot_data["pl_orbeccen"].notnull()]
-    data = data[data_col_list].copy()
+    where_data = prot_data["Ro"].notnull() & prot_data["pl_orbsmax"].notnull() & prot_data["pl_orbeccen"].notnull()
+    data = prot_data.loc[where_data, data_col_list].copy()
 
     # List exoplanets with periastron to mean AS ratio
     alfven_data = estimate_alfven(data)
@@ -363,7 +367,6 @@ def calculate_exos():
     alfven_data = planet_classes(alfven_data)
 
     alfven_data.to_csv("current-exo-data/alfven_data.csv", index=False)
-
     return alfven_data
 
 
@@ -377,7 +380,7 @@ if __name__ == "__main__":
     chz_mhc_data = alfven_data[(alfven_data["MHC"] > 1.0) & (alfven_data["habitable"] == 1)]
 
     cols_print_long = ["pl_name", "mass_class", "rad_class", "st_rad", "RoVK",
-                  "dRoVK", "RoM", "dRoM", "Ro", "dRo", "MHC", "dMHC"]
+                       "dRoVK", "RoM", "dRoM", "Ro", "dRo", "MHC", "dMHC"]
     cols_print_brief = ["pl_name", "Ro", "dRo", "MHC", "dMHC"]
 
     if print_brief:

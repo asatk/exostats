@@ -6,8 +6,8 @@ from os import system
 # FETCH NEW EXO DATA:
 # > cat nasa_exo_query.txt | xargs wget -o nasa_exo_PSCP.csv
 fetch_DBs = True
-update_exos = True
-load_exos = True
+update_dbs = True
+merge_dbs = True
 
 '''
 DATA/COLUMNS THAT ARE NEEDED
@@ -204,7 +204,7 @@ if __name__ == "__main__":
         print("Updating Kepler confirmed planets (kepnames) database!")
         system("cat nasa_exo_kep_query.txt | xargs wget -o log_kep -O tables/nasa_exo_kep.csv")
 
-    if update_exos:
+    if update_dbs:
         nasa_exo = init_nasa_exo()
         hosts_mcq13 = update_exos_mcq13(nasa_exo)
         hosts_mcq14 = update_exos_mcq14(nasa_exo)
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         print("[nasa]\nProt {}\ne_Prot {}\n".format(
             hosts_nasa["Prot"].count(), hosts_nasa["e_Prot"].count()))
 
-    if load_exos:
+    if merge_dbs:
         hosts_mcq13 = pd.read_csv("current-exo-data/hosts_mcq13.csv")
         hosts_mcq14 = pd.read_csv("current-exo-data/hosts_mcq14.csv")
         hosts_arm16 = pd.read_csv("current-exo-data/hosts_arm16.csv")

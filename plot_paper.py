@@ -34,8 +34,12 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
     label = class_list[grp_num]
     alpha = kwargs.get("alpha", 1.0)
     alpha_h = kwargs.get("alpha_h", 1.0)
+    alpha_e = kwargs.get("alpha_e", 0.4)
     s = kwargs.get("s", 20)
     s_h = kwargs.get("s_h", 100)
+    lw = kwargs.get("lw", 0)
+    lw_h = kwargs.get("lw_h", 0)
+    lw_e = kwargs.get("lw_e", 1.1)
 
     if isinstance(plot_err, list):
         plot_err = plot_err[grp_num]
@@ -46,7 +50,7 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
     if plot_err:
         xerr = np.array(df.dRo)
         yerr = np.array(df.dMHC)
-        ax.errorbar(x, y, xerr=xerr, yerr=yerr, linestyle="None", ecolor="#333333", elinewidth=1.1, alpha=0.4, zorder=0.0)
+        ax.errorbar(x, y, xerr=xerr, yerr=yerr, linestyle="None", ecolor="#333333", elinewidth=lw_e, alpha=alpha_e, zorder=0.0)
 
     if show_names:
         xtext = x + xnudge
@@ -64,10 +68,10 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
         nh = np.logical_not(h)
         x_nh = x[nh]
         y_nh = y[nh]
-        ax.scatter(x_h, y_h, color=color_h, alpha=alpha_h, marker=marker_h, zorder=9.5, s=s_h, label="CHZ")
-        ax.scatter(x_nh, y_nh, color=color, alpha=alpha, zorder=scatter_zorder, s=s, label=label)
+        ax.scatter(x_h, y_h, color=color_h, alpha=alpha_h, marker=marker_h, zorder=9.5, s=s_h, label="CHZ", lw=lw_h)
+        ax.scatter(x_nh, y_nh, color=color, alpha=alpha, zorder=scatter_zorder, s=s, label=label, lw=lw)
     else:
-        ax.scatter(x, y, color=color, alpha=alpha, label=label, zorder=scatter_zorder, s=s)
+        ax.scatter(x, y, color=color, alpha=alpha, label=label, zorder=scatter_zorder, s=s, lw=lw)
     
     ax.set_xlabel("Rossby Number", fontsize=18)
     ax.set_ylabel("MHC", fontsize=18)
@@ -277,10 +281,10 @@ if __name__ == "__main__":
 
     xlim_a = (0.0, 5.0)
     ylim_a = (0.06, 60.0)
-    ylim_a = None
+    # ylim_a = None
     xlim_h = (0.0, 4.2)
     ylim_h = (0.2, 30.0)
-    ylim_h = None
+    # ylim_h = None
 
     # Load planet habitability and plotting data
     df = pd.read_csv('current-exo-data/alfven_data.csv')
@@ -290,7 +294,7 @@ if __name__ == "__main__":
     named_planets = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["pl_name"].to_list()
     named_objs = named_stars if names_st else named_planets
 
-    plot_kwargs = {"alpha": 0.5, "s": 15}
+    plot_kwargs = {"alpha": 1.0, "s": 5, "s_h": 25, "lw_e": 1.0, "alpha_e": 0.25}
 
     # master plots
     save_path_m1 = "imgs/Fig1.png"
@@ -298,20 +302,11 @@ if __name__ == "__main__":
         ylim=ylim_h, named_objs=None, logy=True, plot_err=False,
         names_table=False, names_st=names_st, color_list=COLORS_1,
         reverse_grp=True, highlight_habitable=True, include_sol=True,
-        **plot_kwargs)
-    
+        xnudge=0.01, ynudge=0.01, **plot_kwargs)
 
     save_path_m2 = "imgs/Fig2.png"
-    plot_proc(df_h, group=group, save_path=save_path_m2, xlim=xlim_h,
-        ylim=ylim_h, named_objs=named_objs, logy=True, plot_err=False,
-        names_table=False, names_st=names_st, color_list=COLORS_1,
-        reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
-        include_sol=True, **plot_kwargs)
-
-
-    save_path_m3 = "imgs/Fig2_ebars.png"
     plot_err = [False, True, False, False]
-    plot_proc(df_h, group=group, save_path=save_path_m3, xlim=xlim_h,
+    plot_proc(df_h, group=group, save_path=save_path_m2, xlim=xlim_h,
         ylim=ylim_h, named_objs=named_objs, logy=True, plot_err=plot_err,
         names_table=False, names_st=names_st, color_list=COLORS_1,
         reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,

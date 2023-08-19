@@ -148,14 +148,14 @@ if __name__ == "__main__":
     print(MHC_sample[["pl_name", "MHC", "dMHC"]].count())
     print(CHZ_MHC_sample[["pl_name", "MHC", "dMHC"]].count())
 
-    print("[CHZ]",
+    print("[CHZ]\n",
         CHZ_sample.groupby(by="mass_class")[["MHC", "dMHC"]].count())
-    print("\n\n[MHC>1]",
+    print("\n\n[MHC>1]\n",
         MHC_sample.groupby(by="mass_class")[["MHC", "dMHC"]].count())
-    print("\n\n[CHZ, MHC>1]",
+    print("\n\n[CHZ, MHC>1]\n",
         CHZ_MHC_sample.groupby(by="mass_class")[["MHC", "dMHC"]].count())
 
-    print("[CHZ]",
+    print("[CHZ]\n",
         CHZ_sample.groupby(by="rad_class")[["MHC", "dMHC"]].count())
     print("\n\n[MHC>1]\n",
         MHC_sample.groupby(by="rad_class")[["MHC", "dMHC"]].count())

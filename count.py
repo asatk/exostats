@@ -136,6 +136,8 @@ if __name__ == "__main__":
     ro_sample_st = estimate_rossby(prot_sample_st)
 
     as_sample = estimate_alfven(ro_sample)
+    print("EXOS (R) - [{}] MHC".format(
+          as_sample[as_sample["MHC"].notnull()]["MHC"].count()))
 
     where_CHZ = as_sample["habitable"] == 1
     where_MHC = as_sample["MHC"] > 1
@@ -144,9 +146,12 @@ if __name__ == "__main__":
     MHC_sample = as_sample[where_MHC]
     CHZ_MHC_sample = as_sample[where_CHZ & where_MHC]
 
-    print(CHZ_sample[["pl_name", "MHC", "dMHC"]].count())
-    print(MHC_sample[["pl_name", "MHC", "dMHC"]].count())
-    print(CHZ_MHC_sample[["pl_name", "MHC", "dMHC"]].count())
+    print("[CHZ]\n",
+          CHZ_sample[["pl_name", "MHC", "dMHC"]].count())
+    print("[MHC>1]\n",
+          MHC_sample[["pl_name", "MHC", "dMHC"]].count())
+    print("[CHZ, MHC>1]\n",
+          CHZ_MHC_sample[["pl_name", "MHC", "dMHC"]].count())
 
     print("[CHZ]\n",
         CHZ_sample.groupby(by="mass_class")[["MHC", "dMHC"]].count())

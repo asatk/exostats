@@ -120,38 +120,20 @@ dro_sol = 0.26
 ra_sol = 0.1
 dra_sol = 0.02
 r_sol = 1.
-# s = -1.38
-# ds = 0.14
-s = -1.19
+s = -1.38
 ds = 0.14
 r = -0.16
 dr = 0.13
 # r = r - dr
 # r = r + dr
 # all values scaled to solar values at maximum
-# using Vidotto et al. 2014 p 6
-# combining eqns: (7) Farrish 2019 and (2) Farrish 2021
 
+# using Vidotto et al. 2014 p 6 for B_V
+# get R_A from S03 eqn 13
 # radius scaling (s = -1.38, B)
-"""
-def ra_schrijver(ro, rad):
-    return ra_sol * np.real(np.power(ro / ro_sol, s * r) * 
-                            np.power(rad / r_sol, 2 * r))
-
-def dra(ro, rad, dro, drad):
-    return ra_schrijver(ro, rad) * np.sqrt(
-        np.power(dra_sol / ra_sol, 2.) +
-        np.power(s * r * dro / ro, 2.) +
-        np.power(s * r * dro_sol / ro_sol, 2.) +
-        np.power(2 * r * drad / rad, 2.) +
-        np.power(r * np.log(ro / ro_sol) * ds, 2.) +
-        np.power((s * np.log(ro / ro_sol) + 2 * np.log(rad)) * dr, 2.))
-"""
-
-# no radius scaling (s = -1.19, flux)
 def ra_schrijver(ro):
     return ra_sol * np.real(np.power(ro / ro_sol, s * r))
-       
+
 
 def dra_schrijver(ro, dro):
     return ra_schrijver(ro) * np.sqrt(
@@ -221,10 +203,20 @@ def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     
     # Estimate value and uncertainty for periastron
     x = data
-    data["rperi"] = x["pl_orbsmax"] * (1 - x["pl_orbeccen"])
-    data["drperi"] = np.sqrt(np.nansum([
-        np.power(x["pl_orbsmaxerr"] * (1 - x["pl_orbeccen"]), 2.),
-        np.power(x["pl_orbsmax"] * x["pl_orbeccenerr"], 2.)], axis=0))
+
+    where_no_ecc = x["pl_orbeccen"].isnull()
+    where_ecc = x["pl_orbeccen"].notnull()
+    x.loc[where_no_ecc, "rperi"] = x.loc[where_no_ecc, "pl_orbsmax"]
+    x.loc[where_no_ecc, "drperi"] = x.loc[where_no_ecc, "pl_orbsmaxerr"]
+    x.loc[where_ecc, "rperi"] = x.loc[where_ecc, "pl_orbsmax"] * (1 - x.loc[where_ecc, "pl_orbeccen"])
+    x.loc[where_ecc, "drperi"] = np.sqrt(np.nansum([
+        np.power(x.loc[where_ecc, "pl_orbsmaxerr"] * (1 - x.loc[where_ecc, "pl_orbeccen"]), 2.),
+        np.power(x.loc[where_ecc, "pl_orbsmax"] * x.loc[where_ecc, "pl_orbeccenerr"], 2.)], axis=0))
+
+    # data["rperi"] = x["pl_orbsmax"] * (1 - x["pl_orbeccen"])
+    # data["drperi"] = np.sqrt(np.nansum([
+    #     np.power(x["pl_orbsmaxerr"] * (1 - x["pl_orbeccen"]), 2.),
+    #     np.power(x["pl_orbsmax"] * x["pl_orbeccenerr"], 2.)], axis=0))
 
     # Calculate Shrijver scaling relation for mean AS radius
 
@@ -247,11 +239,6 @@ def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     alfven_data["dRA"] = dra
     alfven_data["MHC"] = mhc
     alfven_data["dMHC"] = dmhc
-    
-    # TODO figugre out why??? was this just bc the ra formula w rad scal?
-    # select out data where the Stellar Radius entry is non-empty
-    alfven_data = alfven_data[alfven_data["st_rad"].notnull()]
-    print("no stellar rad: {}\n".format(len(alfven_data[alfven_data["st_rad"].isnull()]["st_rad"])))
     
     #optional: remove 99th quantile and bad vals
     # alfven_data = alfven_data[(alfven_data['Ro'] < np.quantile(alfven_data['Ro'], 0.99)) & (alfven_data['MHC'] < np.quantile(alfven_data['MHC'], 0.99))]
@@ -357,7 +344,7 @@ def calculate_exos() -> pd.DataFrame:
         "db"]
     
     # Planets must have a calculable r_p - both a and e.
-    where_data = prot_data["Ro"].notnull() & prot_data["pl_orbsmax"].notnull() & prot_data["pl_orbeccen"].notnull()
+    where_data = prot_data["Ro"].notnull() & prot_data["pl_orbsmax"].notnull()
     data = prot_data.loc[where_data, data_col_list].copy()
 
     # List exoplanets with periastron to mean AS ratio

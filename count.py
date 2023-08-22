@@ -87,6 +87,7 @@ if __name__ == "__main__":
     assert hosts["Prot"].count() == prot_sample_st["Prot"].count()
     assert hosts["e_Prot"].count() == prot_sample_st["e_Prot"].count()
 
+    print("HOSTS (R) - GROUPED BY 'db'")
     print(hosts.groupby(by="db")["Prot"].count())
 
     print("HOSTS (R) - [{}] Prot\nHOSTS (R) - [{}] e_Prot".format(
@@ -135,9 +136,21 @@ if __name__ == "__main__":
     ro_sample = estimate_rossby(prot_sample)
     ro_sample_st = estimate_rossby(prot_sample_st)
 
+    print("EXOS (R) - [{}] RoVK".format(
+          ro_sample[ro_sample["RoVK"].notnull()]["RoVK"].count()))
+    print("EXOS (R) - [{}] RoM".format(
+          ro_sample[ro_sample["RoM"].notnull()]["RoM"].count()))
+    print("EXOS (R) - [{}] Ro".format(
+          ro_sample[ro_sample["Ro"].notnull()]["Ro"].count()))
+    print("HOSTS (R) - [{}] Ro".format(
+          ro_sample_st[ro_sample_st["Ro"].notnull()]["Ro"].count()))
+
     as_sample = estimate_alfven(ro_sample)
     print("EXOS (R) - [{}] MHC".format(
           as_sample[as_sample["MHC"].notnull()]["MHC"].count()))
+
+    print("EXOS (R) - GROUPED BY 'db'")
+    print(as_sample.groupby(by="db")["Prot"].count())
 
     where_CHZ = as_sample["habitable"] == 1
     where_MHC = as_sample["MHC"] > 1

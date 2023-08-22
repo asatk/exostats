@@ -245,7 +245,6 @@ def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     alfven_data = alfven_data[(alfven_data["Ro"] > 0.0) & (alfven_data["MHC"] > 0.0)]
 
     bad_vals = alfven_data[(alfven_data["Ro"] < 0.0) | (alfven_data["MHC"] < 0.0)]
-    print("bad vals: {}\n".format(bad_vals["pl_name"].count()))
 
     return alfven_data
 

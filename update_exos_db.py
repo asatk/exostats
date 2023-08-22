@@ -64,6 +64,23 @@ def init_nasa_exo():
     return nasa_exo
 
 
+def update_exos_sim10(nasa_exo: pd.DataFrame):
+
+    # Load Simpson 2010 Rotation Period data
+    sim10_prot = pd.read_csv("tables/custom_prot.txt", sep="\s+", header=1, nrows=11)
+
+    sim10_prot = sim10_prot[["name","prot","eprot", "grade"]]
+    sim10_prot.rename(columns={"name": "hd_name", "prot":"Prot","eprot":"e_Prot"}, inplace=True)
+    sim10_prot.insert(len(sim10_prot.columns), "db", "sim10")
+    sim10_prot = sim10_prot[sim10_prot["Prot"].notnull() & (sim10_prot["grade"] == "C")]
+    # C: confirmed; P: probable; W: weak
+
+    exos_sim10 = pd.merge(nasa_exo, sim10_prot, how="inner", on="hd_name")[["hostname","Prot","e_Prot", "db"]]
+    exos_sim10.drop_duplicates(subset="hostname", inplace=True)
+    exos_sim10.to_csv("current-exo-data/hosts_sim10.csv", index=False)
+    return exos_sim10
+
+
 # Update the short-list of exoplanet systems/stars shared by mcq13 and nasa
 def update_exos_mcq13(nasa_exo: pd.DataFrame):
 
@@ -94,6 +111,22 @@ def update_exos_mcq14(nasa_exo: pd.DataFrame):
     exos_mcq14.drop_duplicates(subset="hostname", inplace=True)
     exos_mcq14.to_csv("current-exo-data/hosts_mcq14.csv", index=False)
     return exos_mcq14
+
+
+def update_exos_arm15(nasa_exo: pd.DataFrame):
+
+    # Load Armstring 2015 Kepler flare, rotation, and activity of habitable pl survey
+    arm15_prot = pd.read_csv("tables/custom_prot.txt", sep="\s+", header=14, nrows=7)
+    
+    arm15_prot = arm15_prot[["hostname","prot_acf","eprot_acf"]]
+    arm15_prot.rename(columns={"prot_acf":"Prot","eprot_acf":"e_Prot"}, inplace=True)
+    arm15_prot.insert(len(arm15_prot.columns), "db", "arm15")
+    arm15_prot = arm15_prot[arm15_prot["Prot"].notnull()]
+
+    exos_arm15 = pd.merge(nasa_exo, arm15_prot, how="inner", on="hostname")[["hostname","Prot","e_Prot", "db"]]
+    exos_arm15.drop_duplicates(subset="hostname", inplace=True)
+    exos_arm15.to_csv("current-exo-data/hosts_arm15.csv", index=False)
+    return exos_arm15
 
 
 def update_exos_mar20(nasa_exo: pd.DataFrame):
@@ -127,22 +160,6 @@ def select_prot_martin(prot_str: str, fn=np.min):
             protf.append(float(s))
         return fn(protf)
     else: return float(prot_str)
-
-
-def update_exos_custom(nasa_exo: pd.DataFrame):
-
-    # Load Armstring 2016 Kepler flare, rotation, and activity of habitable pl survey
-    arm16_prot = pd.read_csv("tables/custom_prot.txt", sep="\s+", header=14, nrows=7)
-    
-    arm16_prot = arm16_prot[["hostname","prot_acf","eprot_acf"]]
-    arm16_prot.rename(columns={"prot_acf":"Prot","eprot_acf":"e_Prot"}, inplace=True)
-    arm16_prot.insert(len(arm16_prot.columns), "db", "arm16")
-    arm16_prot = arm16_prot[arm16_prot.Prot.notnull()]
-
-    exos_arm16 = pd.merge(nasa_exo, arm16_prot, how="inner", on="hostname")[["hostname","Prot","e_Prot", "db"]]
-    exos_arm16.drop_duplicates(subset="hostname", inplace=True)
-    exos_arm16.to_csv("current-exo-data/hosts_arm16.csv", index=False)
-    return exos_arm16
 
 
 def update_exos_lu22(nasa_exo: pd.DataFrame):
@@ -206,9 +223,10 @@ if __name__ == "__main__":
 
     if update_dbs:
         nasa_exo = init_nasa_exo()
+        hosts_sim10 = update_exos_sim10(nasa_exo)
         hosts_mcq13 = update_exos_mcq13(nasa_exo)
         hosts_mcq14 = update_exos_mcq14(nasa_exo)
-        hosts_arm16 = update_exos_custom(nasa_exo)
+        hosts_arm15 = update_exos_arm15(nasa_exo)
         hosts_mar20 = update_exos_mar20(nasa_exo)
         hosts_lu22 = update_exos_lu22(nasa_exo)
         hosts_nasa = update_exos_nasa(nasa_exo)
@@ -216,12 +234,14 @@ if __name__ == "__main__":
         update_exos_hill23(nasa_exo)
 
         print("[nasa_exo]\nplanets {}\n".format(nasa_exo["pl_name"].count()))
+        print("[sim10]\nProt {}\ne_Prot {}\n".format(
+            hosts_sim10["Prot"].count(), hosts_sim10["e_Prot"].count()))
         print("[mcq13]\nProt {}\ne_Prot {}\n".format(
             hosts_mcq13["Prot"].count(), hosts_mcq13["e_Prot"].count()))
         print("[mcq14]\nProt {}\ne_Prot {}\n".format(
             hosts_mcq14["Prot"].count(), hosts_mcq14["e_Prot"].count()))
-        print("[arm16]\nProt {}\ne_Prot {}\n".format(
-            hosts_arm16["Prot"].count(), hosts_arm16["e_Prot"].count()))
+        print("[arm15]\nProt {}\ne_Prot {}\n".format(
+            hosts_arm15["Prot"].count(), hosts_arm15["e_Prot"].count()))
         print("[mar20]\nProt {}\ne_Prot {}\n".format(
             hosts_mar20["Prot"].count(), hosts_mar20["e_Prot"].count()))
         print("[lu22]\nProt {}\n".format(hosts_lu22["Prot"].count()))
@@ -229,14 +249,15 @@ if __name__ == "__main__":
             hosts_nasa["Prot"].count(), hosts_nasa["e_Prot"].count()))
 
     if merge_dbs:
+        hosts_sim10 = pd.read_csv("current-exo-data/hosts_sim10.csv")
         hosts_mcq13 = pd.read_csv("current-exo-data/hosts_mcq13.csv")
         hosts_mcq14 = pd.read_csv("current-exo-data/hosts_mcq14.csv")
-        hosts_arm16 = pd.read_csv("current-exo-data/hosts_arm16.csv")
+        hosts_arm15 = pd.read_csv("current-exo-data/hosts_arm15.csv")
         hosts_mar20 = pd.read_csv("current-exo-data/hosts_mar20.csv")
         hosts_lu22 = pd.read_csv("current-exo-data/hosts_lu22.csv")
         hosts_nasa = pd.read_csv("current-exo-data/hosts_nasa.csv")
 
-        hosts = pd.concat([hosts_mcq13, hosts_mcq14, hosts_arm16, hosts_mar20, hosts_lu22, hosts_nasa], ignore_index=True)
+        hosts = pd.concat([hosts_sim10, hosts_mcq13, hosts_mcq14, hosts_arm15, hosts_mar20, hosts_lu22, hosts_nasa], ignore_index=True)
         hosts["e_Prot"] = hosts.apply(lambda r: np.nan if r.e_Prot == 0.0 else r.e_Prot, axis=1)
         hosts["KOI"].fillna(-1, inplace=True, downcast="infer")
         hosts["KIC"].fillna(-1, inplace=True, downcast="infer")

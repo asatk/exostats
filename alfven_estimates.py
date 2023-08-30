@@ -137,12 +137,24 @@ def ra_schrijver(ro):
 
 def dra_schrijver(ro, dro):
     return ra_schrijver(ro) * np.sqrt(
-        np.power(dra_sol / ra_sol, 2.) +
-        np.power(s * r * dro / ro, 2.) +
-        np.power(s * r * dro_sol / ro_sol, 2.) +
-        np.power(r * np.log(ro / ro_sol) * ds, 2.) +
-        np.power((s * np.log(ro / ro_sol)) * dr, 2.))
+        np.square(dra_sol / ra_sol) +
+        np.square(s * r * dro / ro) +
+        np.square(s * r * dro_sol / ro_sol) +
+        np.square(r * np.log(ro / ro_sol) * ds) +
+        np.square((s * np.log(ro / ro_sol)) * dr))
 
+p_f21 = -1.74
+dp_f21 = 0.0097
+c_f21 = 28.4
+
+def lx_farrish(ro):
+    return p_f21 * np.log10(ro / ro_sol) + c_f21
+
+def dlx_farrish(ro, dro):
+    return lx_farrish(ro) * np.sqrt(
+        np.square(dp_f21 * np.log10(ro / ro_sol)) +
+        np.square(p_f21 * dro / ro / LN10)
+    )
 
 def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
     x = nasa_exo
@@ -229,6 +241,9 @@ def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     ra = ra_schrijver(data["Ro"])
     dra = dra_schrijver(data["Ro"], data["dRo"] / ra)
 
+    lx = lx_farrish(data["Ro"])
+    dlx = dlx_farrish(data["Ro"], data["dRo"])
+
     mhc = data["rperi"] / ra
     dmhc = data["rperi"] / ra * np.sqrt(
         np.power(data["drperi"] / data["rperi"], 2.) + \
@@ -237,6 +252,8 @@ def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     alfven_data = data.copy(deep=False)
     alfven_data["RA"] = ra
     alfven_data["dRA"] = dra
+    alfven_data["LX"] = lx
+    alfven_data["dLX"] = dlx
     alfven_data["MHC"] = mhc
     alfven_data["dMHC"] = dmhc
     
@@ -340,7 +357,7 @@ def calculate_exos() -> pd.DataFrame:
         "pl_orbsmaxerr", "pl_orbeccen", "pl_orbeccenerr", "pl_rade",
         "pl_bmasse", "pl_bmassprov", "st_rad", "st_raderr", "RoVK", "RoM",
         "RoAvg", "Ro", "dRoVK", "dRoM", "dRo", "KOI", "KIC", "TIC", "GAIA",
-        "db"]
+        "db", "sy_dist", "sy_disterr"]
     
     # Planets must have a calculable r_p - both a and e.
     where_data = prot_data["Ro"].notnull() & prot_data["pl_orbsmax"].notnull()

@@ -20,15 +20,16 @@ SOL_NAMES = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn",
              "Uranus", "Neptune"]
 
 
-def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
+def plot_df(df: pd.DataFrame, ax: plt.Axes, xcol: str, ycol: str,
+            errxcol: str="dRo", errycol: str="dMHC",logy=False, show_names=False,
             plot_err=False, xnudge: float=0.05, ynudge: float=0.05,
             reverse_grp: bool=False, highlight_habitable: bool=False,
             color_h: str=COLOR_HABITABLE, marker_h: str="*",
-            color_list: list[str]=COLORS_MPL,
+            color_list: list[str]=COLORS_1,
             class_list: list[str]=CLASS_LABELS, **kwargs):
 
-    x = np.array(df.Ro)
-    y = np.array(df.MHC)
+    x = np.array(df[xcol])
+    y = np.array(df[ycol])
     grp_num = df.mass_class.iat[0]  # TODO >>>> MUST CHANGE THIS
     color = color_list[grp_num]
     label = class_list[grp_num]
@@ -40,6 +41,8 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
     lw = kwargs.get("lw", 0)
     lw_h = kwargs.get("lw_h", 0)
     lw_e = kwargs.get("lw_e", 1.1)
+    xlabel = kwargs.get("xlabel", "Rossby Number")
+    ylabel = kwargs.get("ylabel", "MHC")
 
     if isinstance(plot_err, list):
         plot_err = plot_err[grp_num]
@@ -48,9 +51,10 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
         ax.set_yscale("log")
     
     if plot_err:
-        xerr = np.array(df.dRo)
-        yerr = np.array(df.dMHC)
-        ax.errorbar(x, y, xerr=xerr, yerr=yerr, linestyle="None", ecolor="#333333", elinewidth=lw_e, alpha=alpha_e, zorder=0.0)
+        xerr = np.array(df[errxcol])
+        yerr = np.array(df[errycol])
+        ax.errorbar(x, y, xerr=xerr, yerr=yerr, linestyle="None",
+            ecolor="#333333", elinewidth=lw_e, alpha=alpha_e, zorder=0.0)
 
     if show_names:
         xtext = x + xnudge
@@ -68,13 +72,16 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, logy=False, show_names=False,
         nh = np.logical_not(h)
         x_nh = x[nh]
         y_nh = y[nh]
-        ax.scatter(x_h, y_h, color=color_h, alpha=alpha_h, marker=marker_h, zorder=9.5, s=s_h, label="CHZ", lw=lw_h)
-        ax.scatter(x_nh, y_nh, color=color, alpha=alpha, zorder=scatter_zorder, s=s, label=label, lw=lw)
+        ax.scatter(x_h, y_h, color=color_h, alpha=alpha_h, marker=marker_h,
+                   zorder=9.5, s=s_h, label="CHZ", lw=lw_h)
+        ax.scatter(x_nh, y_nh, color=color, alpha=alpha, zorder=scatter_zorder,
+                   s=s, label=label, lw=lw)
     else:
-        ax.scatter(x, y, color=color, alpha=alpha, label=label, zorder=scatter_zorder, s=s, lw=lw)
+        ax.scatter(x, y, color=color, alpha=alpha, label=label,
+                   zorder=scatter_zorder, s=s, lw=lw)
     
-    ax.set_xlabel("Rossby Number", fontsize=18)
-    ax.set_ylabel("MHC", fontsize=18)
+    ax.set_xlabel(xlabel, fontsize=18)
+    ax.set_ylabel(ylabel, fontsize=18)
     ax.tick_params(labelsize=16)
 
 
@@ -100,7 +107,8 @@ def make_plot_names_st(df: pd.DataFrame, return_mapping: bool=False,
     
     hostnames = pd.Series(named_stars, name="hostname")
     
-    df_fltr = pd.merge(df, hostnames, how="inner", on="hostname").sort_values(by=sort_col)[["hostname", "pl_name", "pl_letter"]]
+    df_fltr = pd.merge(df, hostnames, how="inner", on="hostname").sort_values(
+        by=sort_col)[["hostname", "pl_name", "pl_letter"]]
     df_fltr["grp_num"] = df_fltr.groupby("hostname").ngroup() + 1
     df_map = df_fltr.drop_duplicates(subset="hostname")[["grp_num", "hostname"]]
     name_mapping = df_map.to_dict(orient="split")["data"]
@@ -137,17 +145,18 @@ def make_plot_names_pl(df: pd.DataFrame, return_mapping: bool=False,
     return df_all_plot_name
 
 
-def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
-              xlim: tuple[float]=None, ylim: tuple[float]=None,
-              named_objs: list[str]=None, names_table: bool=False,
-              names_st: bool=True, logy: bool=False, bottom_adj: float=0.125,
-              left_adj: float=0.08, leg_loc: int=4, include_sol: bool=False,
-              **kwargs) -> None:
+def plot_proc(df: pd.DataFrame, xcol: str, ycol: str, group: str=None,
+              save_path: str=None, xlim: tuple[float]=None,
+              ylim: tuple[float]=None, named_objs: list[str]=None,
+              names_table: bool=False, names_st: bool=True, logy: bool=False,
+              bottom_adj: float=0.125, left_adj: float=0.08, use_adjust: bool=False,
+              leg_loc: int=4, include_sol: bool=False, **kwargs) -> None:
 
     df = df.copy()
 
-    if named_stars is not None:
-        show_names = True
+    show_names = named_objs is not None
+
+    if show_names:
         sort_col = kwargs.get("sort_col", "pl_name")
         if names_table:
             if names_st:
@@ -168,11 +177,10 @@ def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
                     make_plot_names_pl(df, return_mapping=False,
                         named_planets=named_objs, sort_col=sort_col)
     else:
-        show_names = False
         names_table = False
 
     if include_sol:
-        df = add_solar_system_planets(df)
+        df = add_solar_system_planets(df, use_names=show_names)
 
     if group is not None:
         df_plot = df.groupby(group, as_index=False)
@@ -182,8 +190,8 @@ def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
     ax1: plt.Axes
     fig, ax1 = plt.subplots(nrows=1, ncols=1, figsize=(10,5))
     
-    x = np.array(df["Ro"])
-    y = np.array(df["MHC"])
+    x = np.array(df[xcol])
+    y = np.array(df[ycol])
 
     if xlim is not None:
         xmin = xlim[0]
@@ -213,20 +221,25 @@ def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
 
     ax1.hlines(1.0, xmin=xmin, xmax=xmax, linestyles="dashed", linewidth=1.0,
               colors="gray")
-    df_plot.apply(plot_df, ax=ax1, show_names=show_names, logy=logy, **kwargs)
+
+    if group is not None:
+        df_plot.apply(plot_df, ax=ax1, xcol=xcol, ycol=ycol, show_names=show_names, logy=logy, **kwargs)
+    else:
+        plot_df(df=df_plot, ax=ax1, xcol=xcol, ycol=ycol, show_names=show_names, logy=logy, **kwargs)
     
     hand, labl = ax1.get_legend_handles_labels()
     _, index_u = np.unique(labl, return_index=True)
     labl_u = np.array(labl)[index_u]
     hand_u = np.array(hand)[index_u]
 
+    len_labl_u = len(labl_u)
     # reverse if reverse_grp?
-    if len(labl_u) == 4:
+    if len_labl_u == 4:
         ind_shuffle = [1,3,2,0]
-    elif len(labl_u) == 6:
+    elif len_labl_u == 6:
         ind_shuffle = [3,5,4,1,2,0]
     else:
-        ind_shuffle = [...]
+        ind_shuffle = np.arange(0, len_labl_u)
 
     labl_u = labl_u[ind_shuffle]
     hand_u = hand_u[ind_shuffle]
@@ -239,14 +252,16 @@ def plot_proc(df: pd.DataFrame, group: str=None, save_path: str=None,
         ax1.table(cellText=name_mapping, colWidths=[0.05, 0.15], loc="right")
 
     plt.tight_layout()
-    plt.subplots_adjust(bottom=bottom_adj, left=left_adj)
+    if use_adjust:
+        plt.subplots_adjust(bottom=bottom_adj, left=left_adj)
     if save_path is not None:
         fig.savefig(save_path)
     
     plt.show()
+    plt.close()
 
 
-def add_solar_system_planets(df: pd.DataFrame) -> pd.DataFrame:
+def add_solar_system_planets(df: pd.DataFrame, use_names: bool=False) -> pd.DataFrame:
     ro_sol = 1.85
     dro_sol = 0.26
     ra_sol = 0.1
@@ -255,19 +270,23 @@ def add_solar_system_planets(df: pd.DataFrame) -> pd.DataFrame:
     r_p_earth = 0.983
     r_p_mars = 1.381
     
-    sol = pd.DataFrame({
+    sol_data = {
         "hostname": ["Sol", "Sol", "Sol"],
         "pl_name": ["Venus", "Earth", "Mars"],
-        "plot_name": ["Venus", "Earth", "Mars"],
         "Ro": [ro_sol, ro_sol, ro_sol],
         "dRo": [dro_sol, dro_sol, dro_sol],
         "MHC": [r_p_venus / ra_sol, r_p_earth / ra_sol, r_p_mars / ra_sol],
         "dMHC": [dra_sol, dra_sol, dra_sol],
         "mass_class": [1, 1, 0],
         "habitable": [1, 1, 1]
-    })
+    }
 
-    df["plot_name"] = df["plot_name"].apply(lambda x: str(int(x)) if isinstance(x, (float, int)) else x)
+    if use_names:
+        sol_data.update({"plot_name": ["Venus", "Earth", "Mars"]})
+        df["plot_name"] = df["plot_name"].apply(lambda x: str(int(x)) if isinstance(x, (float, int)) else x)
+
+    sol = pd.DataFrame(sol_data)
+
     return pd.concat([df, sol], ignore_index=True)
 
 
@@ -285,10 +304,21 @@ if __name__ == "__main__":
     xlim_h = (0.0, 4.2)
     ylim_h = (0.2, 30.0)
     # ylim_h = None
+    xlim_g = (0.0, 4.0)
+    # xlim_g = None
+    ylim_g = (0.09, 1.0)
+    # ylim_g = None
+    xlim_h2 = (0.0, 4.2)
+    xlim_h2 = None
+    ylim_h2 = (27.0, 33.0)
+    # ylim_h2 = None
 
     # Load planet habitability and plotting data
     df = pd.read_csv('current-exo-data/alfven_data.csv')
     df_h = df[df["habitable"] == 1].reset_index()
+    df_h2 = df[(df["habitable"]) & (df["MHC"] > 1) & ((df["mass_class"] == 1) | (df["mass_class"] == 2))]
+    df_g = df[(df["mass_class"] == 3) & (df["MHC"] < 1)].reset_index()
+    df_g_dist = df_g[df_g["sy_dist"].notnull()]
 
     named_stars = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["hostname"].drop_duplicates().to_list()
     named_planets = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["pl_name"].to_list()
@@ -296,18 +326,41 @@ if __name__ == "__main__":
 
     plot_kwargs = {"alpha": 1.0, "s": 5, "s_h": 25, "lw_e": 1.0, "alpha_e": 0.25}
 
-    # master plots
+    # # master plots
     save_path_m1 = "imgs/Fig1.png"
-    plot_proc(df, group=group, save_path=save_path_m1, xlim=xlim_h,
-        ylim=ylim_h, named_objs=None, logy=True, plot_err=False,
-        names_table=False, names_st=names_st, color_list=COLORS_1,
-        reverse_grp=True, highlight_habitable=True, include_sol=True,
-        xnudge=0.01, ynudge=0.01, **plot_kwargs)
+    plot_proc(df, "Ro", "MHC", group=group, save_path=save_path_m1, xlim=xlim_a,
+        ylim=ylim_a, named_objs=None, logy=True, plot_err=False,
+        names_table=False, color_list=COLORS_1, reverse_grp=True,
+        highlight_habitable=True, include_sol=True, **plot_kwargs)
 
     save_path_m2 = "imgs/Fig2.png"
     plot_err = [False, True, False, False]
-    plot_proc(df_h, group=group, save_path=save_path_m2, xlim=xlim_h,
+    plot_proc(df_h, "Ro", "MHC", group=group, save_path=save_path_m2, xlim=xlim_h,
         ylim=ylim_h, named_objs=named_objs, logy=True, plot_err=plot_err,
         names_table=False, names_st=names_st, color_list=COLORS_1,
         reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
         include_sol=True, sort_col="MHC", **plot_kwargs)
+
+    save_path_e1 = "imgs/extra1.png"
+    plot_proc(df_g, "Ro", "MHC", save_path=save_path_e1, xlim=xlim_g, ylim=ylim_g,
+              logy=True, color_list=COLORS_1, **plot_kwargs)
+    
+    save_path_e2 = "imgs/extra2.png"
+    plot_proc(df_h2, "Ro", "LX", group=group, save_path=save_path_e2,
+              xlim=xlim_h2, ylim=ylim_h2, colors=COLORS_1, ylabel=r"$L_X$",
+              **plot_kwargs)
+    
+    save_path_e2e = "imgs/extra2_err.png"
+    plot_proc(df_h2, "Ro", "LX", group=group, save_path=save_path_e2e,
+              xlim=xlim_h2, ylim=ylim_h2, colors=COLORS_1, errycol="dLX",
+              ylabel=r"$L_X$", plot_err=plot_err, **plot_kwargs)
+
+    save_path_e3 = "imgs/extra3.png"
+    plot_proc(df_g_dist, "sy_dist", "MHC", save_path=save_path_e3,
+              logy=False, color_list=COLORS_1, xlabel="Distance to Planetary System (pc)",
+              ylim=(0.0, 1.0), **plot_kwargs)
+    
+    save_path_e3e = "imgs/extra3_err.png"
+    plot_proc(df_g_dist, "sy_dist", "MHC", errxcol="sy_disterr", save_path=save_path_e3e,
+              plot_err=True, logy=False, color_list=COLORS_1, xlabel="Distance to Planetary System (pc)",
+              ylim=(0.0, 1.0), **plot_kwargs)

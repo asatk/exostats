@@ -18,36 +18,35 @@ LN10 = np.log(10)
 
 
 # wright et al 2018 (eqn 5): valid for range 1.1 < V-K < 7.0
-def taucVK(V, K):
-    x = np.power(10., AVK + BVK * (V - K))
+def taucVK(VK):
+    x = np.power(10., AVK + BVK * VK)
 
     if isinstance(x, pd.Series):
-        x.loc[np.fabs(V - K - 4.05) > 2.95] = np.nan
+        x.loc[np.fabs(VK - 4.05) > 2.95] = np.nan
         return x
     
-    if np.fabs(V - K - 4.05) <= 2.95:
+    if np.fabs(VK - 4.05) <= 2.95:
         return x
     else:
         return np.nan
 
 
-def dtaucVK(V, K, dV, dK):
-    return taucVK(V, K) * LN10 * np.sqrt(np.power(dAVK, 2.) + 
-                                         np.power((V - K) * dBVK, 2.) + 
+def dtaucVK(VK, dVK):
+    return taucVK(VK) * LN10 * np.sqrt(np.power(dAVK, 2.) + 
+                                         np.power(VK * dBVK, 2.) + 
                                          np.power(BVK, 2.) *
-                                         (np.power(dV, 2.) +
-                                          np.power(dK, 2.)))
+                                         np.power(dVK, 2.))
 
 
-def RoVK(Prot, V, K):
-    return np.fabs(Prot) / taucVK(V,K)
+def RoVK(Prot, VK):
+    return np.fabs(Prot) / taucVK(VK)
 
 
-def dRoVK(Prot, V, K, dProt, dV, dK):
-    return RoVK(Prot, V, K) * np.sqrt(np.power(dProt / Prot, 2.) +
+def dRoVK(Prot, VK, dProt, dVK):
+    return RoVK(Prot, VK) * np.sqrt(np.power(dProt / Prot, 2.) +
                                       np.power(
-                                        dtaucVK(V, K, dV, dK) /
-                                        taucVK(V, K), 2.))
+                                        dtaucVK(VK, dVK) /
+                                        taucVK(VK), 2.))
 
 
 # wright et al 2018 (eqn 6): valid for range 0.08 < M/Msol < 1.36
@@ -182,15 +181,18 @@ def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
 
 def estimate_rossby(prot_data: pd.DataFrame) -> pd.DataFrame:
     x = prot_data
+    prot_data["VK_color"] = \
+        prot_data["sy_vmag"] - prot_data["sy_kmag"]
+    prot_data["dVK_color"] = \
+        np.sqrt(np.square(x["sy_vmagerr"]) + np.square(x["sy_kmagerr"]))
     prot_data["RoVK"] = \
-        RoVK(x["Prot"], x["sy_vmag"], x["sy_kmag"])
+        RoVK(x["Prot"], x["VK_color"])
     prot_data["dRoVK"] = \
-        dRoVK(x["Prot"], x["sy_vmag"], x["sy_kmag"], x["e_Prot"],
-              x["sy_vmagerr"], x["sy_kmagerr"])
+        dRoVK(x["Prot"], x["VK_color"], x["e_Prot"], x["dVK_color"])
     prot_data["TaucVK"] = \
-        taucVK(x["sy_vmag"], x["sy_kmag"])
+        taucVK(x["VK_color"])
     prot_data["dTaucVK"] = \
-        dtaucVK(x["sy_vmag"], x["sy_kmag"], x["sy_vmagerr"], x["sy_kmagerr"])
+        dtaucVK(x["VK_color"], x["dVK_color"])
     prot_data["RoM"] = \
         RoM(x["Prot"], x["st_mass"])
     prot_data["dRoM"] = \
@@ -316,6 +318,16 @@ def rad_class(pl_rad):
         return -1
 
 
+def size_class_subscripts(m, r, h, MHC) -> pd.Series:
+    s = ""
+    if h == 1 and MHC > 1:
+        if m == 1:
+            s += "a"
+        elif r == 1:
+            s += "b"
+    return s
+
+
 def planet_classes(alfven_data: pd.DataFrame) -> pd.DataFrame:
 
     exos_habitable = pd.read_csv("current-exo-data/exos_habitable.csv")
@@ -327,6 +339,8 @@ def planet_classes(alfven_data: pd.DataFrame) -> pd.DataFrame:
     alfven_data["mass_class"] = mass_class(alfven_data["pl_bmasse"])
     alfven_data["rad_class"] = rad_class(alfven_data["pl_rade"])
     alfven_data["habitable"] = alfven_data.apply(lambda r: 1 if r["pl_name"] in habitable_pl_names else 0, axis=1)
+    alfven_data["size_class"] = alfven_data.apply(
+        lambda r: size_class_subscripts(r["mass_class"], r["rad_class"], r["habitable"], r["MHC"]), axis=1)
 
     return alfven_data
 
@@ -342,6 +356,7 @@ def calculate_exos() -> pd.DataFrame:
         "pl_orbsmax", "pl_orbsmaxerr", "pl_orbeccen", "pl_orbeccenerr",
         "sy_vmag", "sy_vmagerr", "sy_kmag", "sy_kmagerr", "st_rad",
         "st_raderr", "st_mass", "st_masserr", "sy_dist", "sy_disterr", "KOI",
+        "st_teff",
         "KIC", "TIC", "GAIA", "db"]
     prot_data = pd.merge(nasa_exo, stars_prot, how="inner", on="hostname",
                          suffixes=("_x", None))[prot_col_list]
@@ -357,7 +372,9 @@ def calculate_exos() -> pd.DataFrame:
         "pl_orbsmaxerr", "pl_orbeccen", "pl_orbeccenerr", "pl_rade",
         "pl_bmasse", "pl_bmassprov", "st_rad", "st_raderr", "RoVK", "RoM",
         "RoAvg", "Ro", "dRoVK", "dRoM", "dRo", "KOI", "KIC", "TIC", "GAIA",
-        "db", "sy_dist", "sy_disterr"]
+        "db", "sy_dist", "sy_disterr", "st_mass", "st_masserr", "sy_vmag",
+        "sy_vmagerr", "sy_kmag", "sy_kmagerr", "Prot","e_Prot", "VK_color",
+        "dVK_color", "st_teff"]
     
     # Planets must have a calculable r_p - both a and e.
     where_data = prot_data["Ro"].notnull() & prot_data["pl_orbsmax"].notnull()
@@ -382,8 +399,9 @@ if __name__ == "__main__":
     chz_data = alfven_data[alfven_data["habitable"] == 1]
     chz_mhc_data = alfven_data[(alfven_data["MHC"] > 1.0) & (alfven_data["habitable"] == 1)]
 
-    cols_print_long = ["pl_name", "mass_class", "rad_class", "st_rad", "RoVK",
-                       "dRoVK", "RoM", "dRoM", "Ro", "dRo", "MHC", "dMHC"]
+    cols_print_long = ["pl_name", "mass_class", "rad_class", "st_mass",
+                       "st_rad", "RoVK", "dRoVK", "RoM", "dRoM", "Ro", "dRo",
+                       "MHC", "dMHC"]
     cols_print_brief = ["pl_name", "Ro", "dRo", "MHC", "dMHC"]
 
     if print_brief:

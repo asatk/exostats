@@ -6,6 +6,9 @@ if __name__ == "__main__":
 
     full_sample_path = "current-exo-data/nasa_exo.csv"
     full_sample = pd.read_csv(full_sample_path)
+
+    print("EXOS - [{}]".format(full_sample["pl_name"].count()))
+
     full_sample = measured_uncertainties(full_sample)
     full_sample["vk"] = full_sample["sy_vmag"] - full_sample["sy_kmag"]
     full_sample["mass_class"] = mass_class(full_sample["pl_bmasse"])
@@ -146,8 +149,9 @@ if __name__ == "__main__":
           ro_sample_st[ro_sample_st["Ro"].notnull()]["Ro"].count()))
 
     as_sample = estimate_alfven(ro_sample)
-    print("EXOS (R) - [{}] MHC".format(
-          as_sample[as_sample["MHC"].notnull()]["MHC"].count()))
+    MHC_sample = as_sample[as_sample["MHC"].notnull()]
+    print("EXOS (R) - [{}] MHC".format(MHC_sample["MHC"].count()))
+    print("HOSTS (R) - [{}] MHC".format(MHC_sample.drop_duplicates(subset="hostname")["hostname"].count()))
 
     print("EXOS (R) - GROUPED BY 'db'")
     print(as_sample.groupby(by="db")["Prot"].count())
@@ -179,3 +183,22 @@ if __name__ == "__main__":
         MHC_sample.groupby(by="rad_class")[["MHC", "dMHC"]].count())
     print("\n\n[CHZ, MHC>1]\n",
         CHZ_MHC_sample.groupby(by="rad_class")[["MHC", "dMHC"]].count())
+    
+    CHZ_MHC_mass1 = CHZ_MHC_sample.loc[CHZ_MHC_sample["mass_class"] == 1, "pl_name"]
+    CHZ_MHC_mass2 = CHZ_MHC_sample.loc[CHZ_MHC_sample["mass_class"] == 2, "pl_name"]
+    CHZ_MHC_rad1 = CHZ_MHC_sample.loc[CHZ_MHC_sample["rad_class"] == 1, "pl_name"]
+    CHZ_MHC_rad2 = CHZ_MHC_sample.loc[CHZ_MHC_sample["rad_class"] == 2, "pl_name"]
+
+    # print(CHZ_MHC_mass1)
+    # print(CHZ_MHC_rad1)
+    # print(CHZ_MHC_mass2)
+    # print(CHZ_MHC_rad2)
+
+    d1L = np.setdiff1d(CHZ_MHC_mass1, CHZ_MHC_rad1)
+    d1R = np.setdiff1d(CHZ_MHC_rad1, CHZ_MHC_mass1)
+    d2L = np.setdiff1d(CHZ_MHC_mass2, CHZ_MHC_rad2)
+    d2R = np.setdiff1d(CHZ_MHC_rad2, CHZ_MHC_mass2)
+
+    print(d1L, d1R)
+    print(d2L, d2R)
+    

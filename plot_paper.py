@@ -21,18 +21,20 @@ SOL_NAMES = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn",
 
 
 def plot_df(df: pd.DataFrame, ax: plt.Axes, xcol: str, ycol: str,
-            errxcol: str="dRo", errycol: str="dMHC",logy=False, show_names=False,
-            plot_err=False, xnudge: float=0.05, ynudge: float=0.05,
-            reverse_grp: bool=False, highlight_habitable: bool=False,
-            color_h: str=COLOR_HABITABLE, marker_h: str="*",
-            color_list: list[str]=COLORS_1,
+            errxcol: str="dRo", errycol: str="dMHC", logx=False, logy=False,
+            show_names=False, plot_err=False, xnudge: float=0.05,
+            ynudge: float=0.05, reverse_grp: bool=False,
+            highlight_habitable: bool=False, color_h: str=COLOR_HABITABLE,
+            marker_h: str="*", color_list: list[str]=COLORS_1,
             class_list: list[str]=CLASS_LABELS, **kwargs):
 
     x = np.array(df[xcol])
     y = np.array(df[ycol])
-    grp_num = df.mass_class.iat[0]  # TODO >>>> MUST CHANGE THIS
-    color = color_list[grp_num]
-    label = class_list[grp_num]
+    grp_num = df["mass_class"].iat[0]  # TODO >>>> MUST CHANGE THIS
+    color = kwargs.get("color", color_list[grp_num])
+    label = kwargs.get("label", f"{class_list[grp_num]} ({len(df)})")
+    len_h = len(df[df["habitable"] == 1])
+    label_h = kwargs.get("label_h", f"CHZ ({len_h})")
     alpha = kwargs.get("alpha", 1.0)
     alpha_h = kwargs.get("alpha_h", 1.0)
     alpha_e = kwargs.get("alpha_e", 0.4)
@@ -41,12 +43,17 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, xcol: str, ycol: str,
     lw = kwargs.get("lw", 0)
     lw_h = kwargs.get("lw_h", 0)
     lw_e = kwargs.get("lw_e", 1.1)
+    fs = kwargs.get("fs", "full")
+    fs_h = kwargs.get("fs_h", "full")
     xlabel = kwargs.get("xlabel", "Rossby Number")
     ylabel = kwargs.get("ylabel", "MHC")
 
     if isinstance(plot_err, list):
         plot_err = plot_err[grp_num]
     
+    if logx:
+        ax.set_xscale("log")
+
     if logy:
         ax.set_yscale("log")
     
@@ -72,8 +79,8 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, xcol: str, ycol: str,
         nh = np.logical_not(h)
         x_nh = x[nh]
         y_nh = y[nh]
-        ax.scatter(x_h, y_h, color=color_h, alpha=alpha_h, marker=marker_h,
-                   zorder=9.5, s=s_h, label="CHZ", lw=lw_h)
+        ax.scatter(x_h, y_h, c=color_h, alpha=alpha_h, marker=marker_h,
+                   zorder=9.5, s=s_h, label=label_h, lw=lw_h)
         ax.scatter(x_nh, y_nh, color=color, alpha=alpha, zorder=scatter_zorder,
                    s=s, label=label, lw=lw)
     else:
@@ -148,9 +155,10 @@ def make_plot_names_pl(df: pd.DataFrame, return_mapping: bool=False,
 def plot_proc(df: pd.DataFrame, xcol: str, ycol: str, group: str=None,
               save_path: str=None, xlim: tuple[float]=None,
               ylim: tuple[float]=None, named_objs: list[str]=None,
-              names_table: bool=False, names_st: bool=True, logy: bool=False,
-              bottom_adj: float=0.125, left_adj: float=0.08, use_adjust: bool=False,
-              leg_loc: int=4, include_sol: bool=False, **kwargs) -> None:
+              names_table: bool=False, names_st: bool=True, logx: bool=False,
+              logy: bool=False, bottom_adj: float=0.125, left_adj: float=0.08,
+              use_adjust: bool=False, leg_loc: int=4, include_sol: bool=False,
+              **kwargs) -> None:
 
     df = df.copy()
 
@@ -179,14 +187,6 @@ def plot_proc(df: pd.DataFrame, xcol: str, ycol: str, group: str=None,
     else:
         names_table = False
 
-    if include_sol:
-        df = add_solar_system_planets(df, use_names=show_names)
-
-    if group is not None:
-        df_plot = df.groupby(group, as_index=False)
-    else:
-        df_plot = df
-
     ax1: plt.Axes
     fig, ax1 = plt.subplots(nrows=1, ncols=1, figsize=(10,5))
     
@@ -196,36 +196,54 @@ def plot_proc(df: pd.DataFrame, xcol: str, ycol: str, group: str=None,
     if xlim is not None:
         xmin = xlim[0]
         xmax = xlim[1]
+        if xmin == 0.0 and logx:
+            xmin = np.nanmin(x) * 0.75
         if xmin is None:
-            xmin = 0
+            xmin = min([np.nanmin(x), 0])
         if xmax is None:
             xmax = np.max(x) * 1.02
     else:
-        xmin = 0
-        xmax = np.max(x) * 1.02
+        if logx:
+            xmin = np.nanmin(x) * 0.75
+        else:
+            xmin = min([np.nanmin(x), 0])
+        xmax = np.nanmax(x) * 1.02
     ax1.set_xlim((xmin, xmax))
 
     if ylim is not None:
         ymin = ylim[0]
         ymax = ylim[1]
         if ymin == 0.0 and logy:
-            ymin = np.min(y) * 0.75
+            ymin = np.nanmin(y) * 0.75
         if ymin is None:
-            ymin = np.min(y) * 0.75
+            ymin = np.nanmin(y) * 0.75
         if ymax is None:
-            ymax = np.max(y) * 1.25
+            ymax = np.nanmax(y) * 1.25
     else:
-        ymin = np.min(y) * 0.75
-        ymax = np.max(y) * 1.25
+        ymin = np.nanmin(y) * 0.75
+        ymax = np.nanmax(y) * 1.25
     ax1.set_ylim((ymin, ymax))
 
     ax1.hlines(1.0, xmin=xmin, xmax=xmax, linestyles="dashed", linewidth=1.0,
               colors="gray")
+    
+    if include_sol:
+        df = add_solar_system_planets(df, use_names=show_names)
+
+    df_subset = df[(df[xcol] <= xmax) & (df[xcol] >= xmin) & (df[ycol] <= ymax) & (df[ycol] >= ymin)]
+    count_subset = df_subset.loc[df_subset[xcol].notnull() & df_subset[ycol].notnull(), "pl_name"].count()
+    count_input = df.loc[df[xcol].notnull() & df[ycol].notnull(), "pl_name"].count()
+    print(f"Number of rows in range {xmin:.3f} <= {xcol} <= {xmax:.3f}; {ymin:.3f} <= {ycol} <= {ymax:.3f}: {count_subset}/{count_input}")
 
     if group is not None:
-        df_plot.apply(plot_df, ax=ax1, xcol=xcol, ycol=ycol, show_names=show_names, logy=logy, **kwargs)
+        df_plot = df_subset.groupby(group, as_index=False)
     else:
-        plot_df(df=df_plot, ax=ax1, xcol=xcol, ycol=ycol, show_names=show_names, logy=logy, **kwargs)
+        df_plot = df_subset
+
+    if group is not None:
+        df_plot.apply(plot_df, ax=ax1, xcol=xcol, ycol=ycol, show_names=show_names, logx=logx, logy=logy, **kwargs)
+    else:
+        plot_df(df=df_plot, ax=ax1, xcol=xcol, ycol=ycol, show_names=show_names, logx=logx, logy=logy, **kwargs)
     
     hand, labl = ax1.get_legend_handles_labels()
     _, index_u = np.unique(labl, return_index=True)
@@ -299,9 +317,11 @@ if __name__ == "__main__":
     names_st = False
 
     xlim_a = (0.0, 5.0)
+    # xlim_a = None
     ylim_a = (0.06, 60.0)
     # ylim_a = None
     xlim_h = (0.0, 4.2)
+    # xlim_h = None
     ylim_h = (0.2, 30.0)
     # ylim_h = None
     xlim_g = (0.0, 4.0)
@@ -312,6 +332,14 @@ if __name__ == "__main__":
     xlim_h2 = None
     ylim_h2 = (27.0, 33.0)
     # ylim_h2 = None
+
+    
+    colors = ["red", "green", "mediumorchid", "orange", "black"]
+    color_h = "royalblue"
+
+    # colors = ["red", "black", "green", "orange", "purple"]
+    # colors = ["red", "blue", "black", "orange", "purple"]
+    # color_h = "blue"
 
     # Load planet habitability and plotting data
     df = pd.read_csv('current-exo-data/alfven_data.csv')
@@ -324,23 +352,112 @@ if __name__ == "__main__":
     named_planets = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["pl_name"].to_list()
     named_objs = named_stars if names_st else named_planets
 
-    plot_kwargs = {"alpha": 1.0, "s": 5, "s_h": 25, "lw_e": 1.0, "alpha_e": 0.25}
+    plot_kwargs = {"alpha": 1.0, "s": 15, "lw_e": 1.0, "alpha_e": 0.25,
+                   "s_h": 100, "color_h": color_h, "marker_h": "*", "label_h": f"CHZ ({len(df_h)})"}
 
-    # # master plots
-    save_path_m1 = "imgs/Fig1.png"
-    plot_proc(df, "Ro", "MHC", group=group, save_path=save_path_m1, xlim=xlim_a,
-        ylim=ylim_a, named_objs=None, logy=True, plot_err=False,
-        names_table=False, color_list=COLORS_1, reverse_grp=True,
-        highlight_habitable=True, include_sol=True, **plot_kwargs)
+    # master plots
+
+    # save_path_m1 = "imgs/Fig1.png"
+    # plot_proc(df, "Ro", "MHC", group=group, save_path=save_path_m1, xlim=xlim_a,
+    #     ylim=ylim_a, named_objs=None, logy=True, plot_err=False,
+    #     names_table=False, color_list=colors, reverse_grp=True,
+    #     highlight_habitable=True, include_sol=True, **plot_kwargs)
+    
+    # xlim_a_st = None
+    # # ylim_a_st = ylim_a
+    # ylim_a_st = None
+    # save_path_m1_st = "imgs/Fig1_st_mass.png"
+    # plot_proc(df, "st_mass", "MHC", group=group, save_path=save_path_m1_st, xlim=xlim_a_st,
+    #     ylim=ylim_a_st, named_objs=None, logy=True, plot_err=False,
+    #     names_table=False, color_list=colors, reverse_grp=True,
+    #     highlight_habitable=True, include_sol=True, leg_loc=1,
+    #     xlabel="Stellar Mass (M\u2299)", **plot_kwargs)
+    
+    # save_path_m1_vk = "imgs/Fig1_vkcolor.png"
+    # plot_proc(df, "VK_color", "MHC", group=group, save_path=save_path_m1_vk, xlim=xlim_a_st,
+    #     ylim=ylim_a_st, named_objs=None, logy=True, plot_err=False,
+    #     names_table=False, color_list=colors, reverse_grp=True,
+    #     highlight_habitable=True, include_sol=True, leg_loc=1,
+    #     xlabel=r"V-K Color ($\Delta$mag)", **plot_kwargs)
+    
+    # xlim_a_teff = (2200, 7200)
+    # save_path_m1_teff = "imgs/Fig1_teff.png"
+    # plot_proc(df, "st_teff", "MHC", group=group, save_path=save_path_m1_teff, xlim=xlim_a_teff,
+    #     ylim=ylim_a_st, named_objs=None, logy=True, plot_err=False,
+    #     names_table=False, color_list=colors, reverse_grp=True,
+    #     highlight_habitable=True, include_sol=True, leg_loc=1,
+    #     xlabel=r"$T_{eff}$ (K)", **plot_kwargs)
+    
+    xlim_a_teffRo = (0, 5.5)
+    ylim_a_teffRo = (2200, 7200)
+    save_path_m1_teffRo = "imgs/Fig1_teffRo.png"
+    plot_proc(df, "Ro", "st_teff", group=group, save_path=save_path_m1_teffRo, xlim=xlim_a_teffRo,
+        ylim=ylim_a_teffRo, named_objs=None, logy=True, plot_err=False,
+        names_table=False, color_list=colors, reverse_grp=True,
+        highlight_habitable=True, include_sol=True, leg_loc=4,
+        xlabel="Ro", ylabel=r"$T_{eff}$ (K)", **plot_kwargs)
+    
+    xlim_h_teffRo = (0, 4.2)
+    ylim_h_teffRo = (2200, 7200)
+    save_path_m2_teffRo = "imgs/Fig2_teffRo.png"
+    plot_proc(df_h, "Ro", "st_teff", group=group, save_path=save_path_m2_teffRo, xlim=xlim_h_teffRo,
+        ylim=ylim_h_teffRo, named_objs=None, logy=True, plot_err=False,
+        names_table=False, color_list=colors, reverse_grp=True,
+        highlight_habitable=False, include_sol=True, leg_loc=4,
+        xlabel="Ro", ylabel=r"$T_{eff}$ (K)", **plot_kwargs)
 
     save_path_m2 = "imgs/Fig2.png"
     plot_err = [False, True, False, False]
     plot_proc(df_h, "Ro", "MHC", group=group, save_path=save_path_m2, xlim=xlim_h,
         ylim=ylim_h, named_objs=named_objs, logy=True, plot_err=plot_err,
-        names_table=False, names_st=names_st, color_list=COLORS_1,
+        names_table=False, names_st=names_st, color_list=colors,
         reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
         include_sol=True, sort_col="MHC", **plot_kwargs)
+    
+    xlim_h_st = None
+    # ylim_h_st = ylim_h
+    ylim_h_st = None
+    save_path_m2_st_mass = "imgs/Fig2_st_mass.png"
+    plot_err = [False, True, False, False]
+    plot_proc(df_h, "st_mass", "MHC", group=group, save_path=save_path_m2_st_mass, xlim=xlim_h_st,
+        ylim=ylim_h_st, named_objs=named_objs, logy=True, plot_err=plot_err,
+        names_table=False, names_st=names_st, color_list=colors,
+        reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
+        include_sol=True, sort_col="MHC", xlabel="Stellar Mass (M\u2299)",
+        errxcol="st_masserr", **plot_kwargs)
 
+    xlim_h_vk = (1, 7)
+    # ylim_h_st = ylim_h
+    ylim_h_vk = None
+    save_path_m2_vk_color = "imgs/Fig2_vk_color.png"
+    plot_err = [False, True, False, False]
+    plot_proc(df_h, "VK_color", "MHC", group=group, save_path=save_path_m2_vk_color, xlim=xlim_h_vk,
+        ylim=ylim_h_vk, named_objs=named_objs, logy=True, plot_err=plot_err,
+        names_table=False, names_st=names_st, color_list=colors, leg_loc=1,
+        reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
+        include_sol=True, sort_col="VK_color", xlabel=r"V-K Color ($\Delta$mag)",
+        errxcol="dVK_color", **plot_kwargs)
+    
+    # xlim_h_vk = (0, 7)
+    # # ylim_h_st = ylim_h
+    # ylim_h_vk = None
+    # save_path_m2_vk_color = "imgs/Fig2_teff_color.png"
+    # plot_err = [False, True, False, False]
+    # plot_proc(df_h, "st_teff", "MHC", group=group, save_path=save_path_m2_vk_color, xlim=xlim_h_vk,
+    #     ylim=ylim_h_vk, named_objs=named_objs, logy=True, plot_err=plot_err,
+    #     names_table=False, names_st=names_st, color_list=colors, leg_loc=1,
+    #     reverse_grp=True, highlight_habitable=False, xnudge=0.01, ynudge=0.01,
+    #     include_sol=True, sort_col="VK_color", xlabel=r"V-K Color ($\Delta$mag)",
+    #     errxcol="dVK_color", **plot_kwargs)
+
+    # save_path_w18 = "imgs/W18.png"
+    # xlim_w18 = None
+    # ylim_w18 = None
+    # plot_proc(df, "Ro", "LX", save_path=save_path_w18, xlim=xlim_w18, ylim=ylim_w18,
+    #           ylabel=r"$L_X$", logx=True, logy=True, color="red", label="Exoplanets",
+    #          **plot_kwargs)
+
+    """
     save_path_e1 = "imgs/extra1.png"
     plot_proc(df_g, "Ro", "MHC", save_path=save_path_e1, xlim=xlim_g, ylim=ylim_g,
               logy=True, color_list=COLORS_1, **plot_kwargs)
@@ -364,3 +481,4 @@ if __name__ == "__main__":
     plot_proc(df_g_dist, "sy_dist", "MHC", errxcol="sy_disterr", save_path=save_path_e3e,
               plot_err=True, logy=False, color_list=COLORS_1, xlabel="Distance to Planetary System (pc)",
               ylim=(0.0, 1.0), **plot_kwargs)
+    """

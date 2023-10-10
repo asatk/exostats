@@ -116,8 +116,10 @@ def choosedRo(RoVK: pd.Series, RoM: pd.Series, dRoVK: pd.Series,
 prot_sol = 27.
 ro_sol = 1.85
 dro_sol = 0.26
-ra_sol = 0.1
-dra_sol = 0.02
+ra_sol = 0.1    #about 20Rsun
+# ra_sol = 0.0451 # 9.7Rsun
+# ra_sol = 0.1383 # 695700km in AU
+dra_sol = 0.2 * ra_sol  # 20% error (cycle variation)
 r_sol = 1.
 s = -1.38
 ds = 0.14

@@ -5,7 +5,7 @@ from os import system
 
 # FETCH NEW EXO DATA:
 # > cat nasa_exo_query.txt | xargs wget -o nasa_exo_PSCP.csv
-fetch_DBs = False   # Last updated: 2023.09.05:1200
+fetch_DBs = False   # Last updated: 2023.10.05:1222 CDT
 update_dbs = True
 merge_dbs = True
 

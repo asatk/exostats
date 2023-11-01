@@ -5,7 +5,7 @@ from os import system
 
 # FETCH NEW EXO DATA:
 # > cat nasa_exo_query.txt | xargs wget -o nasa_exo_PSCP.csv
-fetch_DBs = False   # Last updated: 2023.10.05:1222 CDT
+fetch_DBs = True   # Last updated: 2023.10.20:15:48 CDT
 update_dbs = True
 merge_dbs = True
 
@@ -258,7 +258,7 @@ if __name__ == "__main__":
         hosts_nasa = pd.read_csv("current-exo-data/hosts_nasa.csv")
 
         hosts = pd.concat([hosts_sim10, hosts_mcq13, hosts_mcq14, hosts_arm15, hosts_mar20, hosts_lu22, hosts_nasa], ignore_index=True)
-        hosts["e_Prot"] = hosts.apply(lambda r: np.nan if r.e_Prot == 0.0 else r.e_Prot, axis=1)
+        hosts["e_Prot"] = hosts.apply(lambda r: np.nan if r.e_Prot == 0 else r.e_Prot, axis=1)
         hosts["KOI"].fillna(-1, inplace=True, downcast="infer")
         hosts["KIC"].fillna(-1, inplace=True, downcast="infer")
         hosts["TIC"].fillna(-1, inplace=True, downcast="infer")

@@ -1,14 +1,15 @@
+import numpy as np
 import pandas as pd
 
 def print_table(pl_name, Ro, dRo, MHC, dMHC, num):
     
     str_Ro = f"${Ro:05f}"
-    if dRo is not None:
+    if dRo is not None and not np.isnan(dRo):
         str_Ro += f"\pm {dRo:05f}"
     str_Ro += "$"
 
     str_MHC = f"${MHC:05f}"
-    if dMHC is not None:
+    if dMHC is not None and not np.isnan(dMHC):
         str_MHC += f"\pm {dMHC:05f}"
     str_MHC += "$"
 

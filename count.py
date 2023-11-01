@@ -54,8 +54,8 @@ if __name__ == "__main__":
         full_sample["pl_orbsmax"].count(),
         full_sample["pl_orbeccen"].count()))
     print("EXOS - [{}] uncertainty in semi-major axis (da)\nEXOS - [{}] uncertainty in eccentricity (de)".format(
-        full_sample["pl_orbsmaxerr"].count(),
-        full_sample["pl_orbeccenerr"].count()))
+        full_sample["e_pl_orbsmax"].count(),
+        full_sample["e_pl_orbeccen"].count()))
 
     # STELLAR/INTERIOR CONVECTION TYPE CUT
 
@@ -110,31 +110,31 @@ if __name__ == "__main__":
         prot_sample["st_mass"].count()))
 
     print("HOSTS (R) - [{}] dV\nHOSTS (R) - [{}] dK\nHOSTS (R) - [{}] dM*".format(
-        prot_sample_st["sy_vmagerr"].count(),
-        prot_sample_st["sy_kmagerr"].count(),
-        prot_sample_st["st_masserr"].count()))
+        prot_sample_st["e_sy_vmag"].count(),
+        prot_sample_st["e_sy_kmag"].count(),
+        prot_sample_st["e_st_mass"].count()))
     print("EXOS (R) - [{}] dV\nEXOS (R) - [{}] dK\nEXOS (R) - [{}] dM*".format(
-        prot_sample["sy_vmagerr"].count(),
-        prot_sample["sy_kmagerr"].count(),
-        prot_sample["st_masserr"].count()))
+        prot_sample["e_sy_vmag"].count(),
+        prot_sample["e_sy_kmag"].count(),
+        prot_sample["e_st_mass"].count()))
 
-    where_err = (prot_sample["sy_vmagerr"].notnull() | prot_sample["sy_kmagerr"].notnull()) ^ \
-        (prot_sample["sy_vmagerr"].notnull() & prot_sample["sy_kmagerr"].notnull())
-    where_err_st = (prot_sample_st["sy_vmagerr"].notnull() | prot_sample_st["sy_kmagerr"].notnull()) ^ \
-        (prot_sample_st["sy_vmagerr"].notnull() & prot_sample_st["sy_kmagerr"].notnull())
+    where_err = (prot_sample["e_sy_vmag"].notnull() | prot_sample["e_sy_kmag"].notnull()) ^ \
+        (prot_sample["e_sy_vmag"].notnull() & prot_sample["e_sy_kmag"].notnull())
+    where_err_st = (prot_sample_st["e_sy_vmag"].notnull() | prot_sample_st["e_sy_kmag"].notnull()) ^ \
+        (prot_sample_st["e_sy_vmag"].notnull() & prot_sample_st["e_sy_kmag"].notnull())
 
     print("HOSTS")
     print(prot_sample_st.loc[where_err_st, ["sy_vmagerr", "sy_kmagerr"]].count())
     print("EXOS")
-    print(prot_sample.loc[where_err, ["sy_vmagerr", "sy_kmagerr"]].count())
+    print(prot_sample.loc[where_err, ["e_sy_vmag", "e_sy_kmag"]].count())
 
     # ORBITAL DATA CUT (ROTATORS)
     print("EXOS (R) - [{}] semi-major axis (a)\nEXOS (R) - [{}] eccentricity (e)".format(
         prot_sample["pl_orbsmax"].count(),
         prot_sample["pl_orbeccen"].count()))
     print("EXOS (R) - [{}] uncertainty in semi-major axis (da)\nEXOS (R) - [{}] uncertainty in eccentricity (de)".format(
-        prot_sample["pl_orbsmaxerr"].count(),
-        prot_sample["pl_orbeccenerr"].count()))
+        prot_sample["e_pl_orbsmax"].count(),
+        prot_sample["e_pl_orbeccen"].count()))
 
     ro_sample = estimate_rossby(prot_sample)
     ro_sample_st = estimate_rossby(prot_sample_st)
@@ -160,34 +160,34 @@ if __name__ == "__main__":
     where_MHC = as_sample["MHC"] > 1
 
     CHZ_sample = as_sample[where_CHZ]
-    MHC_sample = as_sample[where_MHC]
-    CHZ_MHC_sample = as_sample[where_CHZ & where_MHC]
+    MHC1_sample = as_sample[where_MHC]
+    CHZ_MHC1_sample = as_sample[where_CHZ & where_MHC]
 
     print("[CHZ]\n",
-          CHZ_sample[["pl_name", "MHC", "dMHC"]].count())
+          CHZ_sample[["pl_name", "MHC", "e_MHC"]].count())
     print("[MHC>1]\n",
-          MHC_sample[["pl_name", "MHC", "dMHC"]].count())
+          MHC1_sample[["pl_name", "MHC", "e_MHC"]].count())
     print("[CHZ, MHC>1]\n",
-          CHZ_MHC_sample[["pl_name", "MHC", "dMHC"]].count())
+          CHZ_MHC1_sample[["pl_name", "MHC", "e_MHC"]].count())
 
     print("[CHZ]\n",
-        CHZ_sample.groupby(by="mass_class")[["MHC", "dMHC"]].count())
+        CHZ_sample.groupby(by="mass_class")[["MHC", "e_MHC"]].count())
     print("\n\n[MHC>1]\n",
-        MHC_sample.groupby(by="mass_class")[["MHC", "dMHC"]].count())
+        MHC1_sample.groupby(by="mass_class")[["MHC", "e_MHC"]].count())
     print("\n\n[CHZ, MHC>1]\n",
-        CHZ_MHC_sample.groupby(by="mass_class")[["MHC", "dMHC"]].count())
+        CHZ_MHC1_sample.groupby(by="mass_class")[["MHC", "e_MHC"]].count())
 
     print("[CHZ]\n",
-        CHZ_sample.groupby(by="rad_class")[["MHC", "dMHC"]].count())
+        CHZ_sample.groupby(by="rad_class")[["MHC", "e_MHC"]].count())
     print("\n\n[MHC>1]\n",
-        MHC_sample.groupby(by="rad_class")[["MHC", "dMHC"]].count())
+        MHC1_sample.groupby(by="rad_class")[["MHC", "e_MHC"]].count())
     print("\n\n[CHZ, MHC>1]\n",
-        CHZ_MHC_sample.groupby(by="rad_class")[["MHC", "dMHC"]].count())
+        CHZ_MHC1_sample.groupby(by="rad_class")[["MHC", "e_MHC"]].count())
     
-    CHZ_MHC_mass1 = CHZ_MHC_sample.loc[CHZ_MHC_sample["mass_class"] == 1, "pl_name"]
-    CHZ_MHC_mass2 = CHZ_MHC_sample.loc[CHZ_MHC_sample["mass_class"] == 2, "pl_name"]
-    CHZ_MHC_rad1 = CHZ_MHC_sample.loc[CHZ_MHC_sample["rad_class"] == 1, "pl_name"]
-    CHZ_MHC_rad2 = CHZ_MHC_sample.loc[CHZ_MHC_sample["rad_class"] == 2, "pl_name"]
+    CHZ_MHC_mass1 = CHZ_MHC1_sample.loc[CHZ_MHC1_sample["mass_class"] == 1, "pl_name"]
+    CHZ_MHC_mass2 = CHZ_MHC1_sample.loc[CHZ_MHC1_sample["mass_class"] == 2, "pl_name"]
+    CHZ_MHC_rad1 = CHZ_MHC1_sample.loc[CHZ_MHC1_sample["rad_class"] == 1, "pl_name"]
+    CHZ_MHC_rad2 = CHZ_MHC1_sample.loc[CHZ_MHC1_sample["rad_class"] == 2, "pl_name"]
 
     # print(CHZ_MHC_mass1)
     # print(CHZ_MHC_rad1)
@@ -201,4 +201,17 @@ if __name__ == "__main__":
 
     print(d1L, d1R)
     print(d2L, d2R)
+
+    # AGES
+    ages = MHC_sample["st_age"]
+    ages_min = np.min(ages)
+    ages_max = np.max(ages)
+    ages_mean = np.mean(ages)
+    ages_med =  np.median(ages)
+    ages_std = np.std(ages)
+    print(f"[EXOS] - AGES\n - min {ages_min}\n - max {ages_max}\n - {ages_mean}\n - {ages_mean}\n - median {ages_med}\n - std {ages_std}")
     
+    MHC_young = ages[ages < 0.1].count()
+    MHC_ms = ages[(ages >= 0.1) & (ages <= 4.5)].count()
+    MHC_old = ages[ages > 4.5].count()
+    print(f"[EXOS] young (<100Myr) {MHC_young}\n[EXOS] main seq {MHC_ms}\n[EXOS] old (>4.5Gyr) {MHC_old}")

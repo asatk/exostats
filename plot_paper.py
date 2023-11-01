@@ -24,8 +24,8 @@ SOL_NAMES = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn",
 
 def plot_df(df: pd.DataFrame, ax: plt.Axes, xcol: str, ycol: str,
             errxcol: str="dRo", errycol: str="dMHC", logx=False, logy=False,
-            show_names=False, plot_err=False, xnudge: float=0.05,
-            ynudge: float=0.05, reverse_grp: bool=False,
+            show_names=False, plot_err=False, xnudge: float=0.005,
+            ynudge: float=0.025, reverse_grp: bool=False,
             highlight_habitable: bool=False, color_h: str=COLOR_HABITABLE,
             marker_h: str="*", color_list: list[str]=COLORS_1,
             class_list: list[str]=CLASS_LABELS, **kwargs):
@@ -45,8 +45,6 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, xcol: str, ycol: str,
     lw = kwargs.get("lw", 0)
     lw_h = kwargs.get("lw_h", 0)
     lw_e = kwargs.get("lw_e", 1.1)
-    fs = kwargs.get("fs", "full")
-    fs_h = kwargs.get("fs_h", "full")
 
     if isinstance(plot_err, list):
         plot_err = plot_err[grp_num]
@@ -110,7 +108,7 @@ def make_plot_names_st(df: pd.DataFrame, named_stars: list[str]=NAMED_STARS,
     df_fltr = pd.merge(df, hostnames, how="inner", on="hostname").sort_values(
         by=sort_col)[["hostname", "pl_name", "pl_letter"]]
     df_fltr["grp_num"] = df_fltr.groupby("hostname").ngroup() + 1
-    df_map = df_fltr.drop_duplicates(subset="hostname")[["grp_num", "hostname"]]
+    # df_map = df_fltr.drop_duplicates(subset="hostname")[["grp_num", "hostname"]]
     
     df_grp_len = df_fltr.groupby("hostname")["grp_num"].count()
     df_grp_len.rename("grp_len", inplace=True)
@@ -173,7 +171,7 @@ def plot_proc(df: pd.DataFrame, xcol: str, ycol: str, ax: plt.Axes,
     if xlim is not None:
         xlimmin = xlim[0]
         xlimmax = xlim[1]
-        if xlimmin == 0.0 and logx:
+        if xlimmin == 0 and logx:
             xlimmin = xmin * pad_log
         if xlimmin is None:
             xlimmin = xmin - pad * xspan
@@ -190,7 +188,7 @@ def plot_proc(df: pd.DataFrame, xcol: str, ycol: str, ax: plt.Axes,
     if ylim is not None:
         ylimmin = ylim[0]
         ylimmax = ylim[1]
-        if ylimmin == 0.0 and logy:
+        if ylimmin == 0 and logy:
             ylimmin = ymin * pad_log
         if ylimmin is None:
             ylimmin = ymin - pad * yspan
@@ -203,14 +201,16 @@ def plot_proc(df: pd.DataFrame, xcol: str, ycol: str, ax: plt.Axes,
 
     ax.hlines(1.0, xmin=xlimmin, xmax=xlimmax, linestyles="dashed", linewidth=1.0,
               colors="gray")
-
+    
+    # just for the counts
     df_subset = df[(df[xcol] <= xlimmax) & (df[xcol] >= xlimmin) & (df[ycol] <= ylimmax) & (df[ycol] >= ylimmin)]
     count_subset = df_subset.loc[df_subset[xcol].notnull() & df_subset[ycol].notnull(), "pl_name"].count()
     count_input = df.loc[df[xcol].notnull() & df[ycol].notnull(), "pl_name"].count()
-    print(f"Number of rows in range {xlimmin:.3f} <= {xcol} <= {xlimmax:.3f}; {ylimmin:.3f} <= {ycol} <= {ylimmax:.3f}: {count_subset}/{count_input}")
+    print(f"Number of rows (NOT incl. 3 SolSys pls) in range {xlimmin:.3f} <= {xcol} <= {xlimmax:.3f}; {ylimmin:.3f} <= {ycol} <= {ylimmax:.3f}: {count_subset}/{count_input}")
 
     if include_sol:
         df = add_solar_system_planets(df, use_names=show_names)
+        df_subset = df[(df[xcol] <= xlimmax) & (df[xcol] >= xlimmin) & (df[ycol] <= ylimmax) & (df[ycol] >= ylimmin)]
 
     if group is not None:
         df_plot = df_subset.groupby(group, as_index=False)
@@ -247,7 +247,8 @@ def plot_proc(df: pd.DataFrame, xcol: str, ycol: str, ax: plt.Axes,
 def add_solar_system_planets(df: pd.DataFrame, use_names: bool=False) -> pd.DataFrame:
     ro_sol = 1.85
     dro_sol = 0.26
-    ra_sol = 0.1383 # 695700km in AU
+    # ra_sol = 0.1383 # 695700km in AU
+    ra_sol = 0.0930
     dra_sol = 0.02  # 20% error (cycle variation)
     r_p_venus = 0.718
     r_p_earth = 0.983
@@ -257,10 +258,11 @@ def add_solar_system_planets(df: pd.DataFrame, use_names: bool=False) -> pd.Data
     sol_data = {
         "hostname": ["Sol", "Sol", "Sol"],
         "pl_name": ["Venus", "Earth", "Mars"],
+        "plot_name": ["Venus", "Earth", "Mars"],
         "Ro": [ro_sol, ro_sol, ro_sol],
-        "dRo": [dro_sol, dro_sol, dro_sol],
+        "e_Ro": [dro_sol, dro_sol, dro_sol],
         "MHC": [r_p_venus / ra_sol, r_p_earth / ra_sol, r_p_mars / ra_sol],
-        "dMHC": [dra_sol, dra_sol, dra_sol],
+        "e_MHC": [dra_sol, dra_sol, dra_sol],
         "st_mass": [1., 1., 1.],
         "VK_color": [vk_color_sol, vk_color_sol, vk_color_sol],
         "mass_class": [1, 1, 0],
@@ -318,8 +320,8 @@ if __name__ == "__main__":
         color_list=colors, reverse_grp=True, highlight_habitable=True,
         include_sol=True, leg_loc=1,**plot_kwargs)
 
-    ax1a.annotate("A", xy=[0.02, 0.925], xycoords=ax1a.transAxes, fontsize=20)
-    ax1b.annotate("B", xy=[0.02, 0.925], xycoords=ax1b.transAxes, fontsize=20)
+    ax1a.annotate("a", xy=[0.02, 0.925], xycoords=ax1a.transAxes, fontsize=20)
+    ax1b.annotate("b", xy=[0.02, 0.925], xycoords=ax1b.transAxes, fontsize=20)
 
     ax1a.set_xlabel(r"Stellar Mass $(M_\odot)$", fontsize=18)
     ax1a.set_ylabel("MHC", fontsize=18)
@@ -334,25 +336,25 @@ if __name__ == "__main__":
     plt.close()
 
 
-    fig, ax2 = plt.subplots(nrows=1, ncols=1, figsize=(10,5))
-    ax2: plt.Axes
+    # fig, ax2 = plt.subplots(nrows=1, ncols=1, figsize=(10,5))
+    # ax2: plt.Axes
 
-    xlim_2 = (0, None)
-    ylim_2 = (0, 75)
-    save_path_2 = "imgs/Fig2_mass.png"
-    plot_err = [True, True, True, True]
-    plot_proc(df_h, "st_mass", "MHC", ax2, group=group, xlim=xlim_2,
-        ylim=ylim_2, named_objs=named_objs, logy=True, plot_err=plot_err,
-        names_st=names_st, color_list=colors, reverse_grp=True,
-        highlight_habitable=False, include_sol=True, sort_col="MHC",
-        leg_loc=1, errxcol="st_masserr", errycol="dMHC", **plot_kwargs)
+    # xlim_2 = (0, None)
+    # ylim_2 = (0, 75)
+    # save_path_2 = "imgs/Fig2_mass.png"
+    # plot_err = [True, True, True, True]
+    # plot_proc(df_h, "st_mass", "MHC", ax2, group=group, xlim=xlim_2,
+    #     ylim=ylim_2, named_objs=named_objs, logy=True, plot_err=plot_err,
+    #     names_st=names_st, color_list=colors, reverse_grp=True,
+    #     highlight_habitable=False, include_sol=True, sort_col="MHC",
+    #     leg_loc=1, errxcol="st_masserr", errycol="dMHC", **plot_kwargs)
     
-    ax2.set_xlabel(r"Stellar Mass $(M_\odot)$", fontsize=18)
-    ax2.set_ylabel("MHC", fontsize=18)
-    ax2.tick_params(labelsize=16)
-    fig.tight_layout()
-    plt.savefig(save_path_2)
-    plt.show()
+    # ax2.set_xlabel(r"Stellar Mass $(M_\odot)$", fontsize=18)
+    # ax2.set_ylabel("MHC", fontsize=18)
+    # ax2.tick_params(labelsize=16)
+    # fig.tight_layout()
+    # plt.savefig(save_path_2)
+    # plt.show()
 
 
     fig, ax2 = plt.subplots(nrows=1, ncols=1, figsize=(10,5))
@@ -366,11 +368,36 @@ if __name__ == "__main__":
         ylim=ylim_2, named_objs=named_objs, logy=True, plot_err=plot_err,
         names_st=names_st, color_list=colors, reverse_grp=True,
         highlight_habitable=False, include_sol=True, sort_col="MHC",
-        leg_loc=1, errxcol="dVK_color", errycol="dMHC", **plot_kwargs)
+        leg_loc=1, errxcol="e_VK_color", errycol="e_MHC", **plot_kwargs)
     
     ax2.set_xlabel(r"$V-K_s$ Color ($\Delta$mag)", fontsize=18)
     ax2.set_ylabel("MHC", fontsize=18)
     ax2.tick_params(labelsize=16)
     fig.tight_layout()
     plt.savefig(save_path_2)
+    plt.show()
+
+    fig, ax3 = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
+    ax3: plt.Axes
+
+    ages = df.loc[df["MHC"].notnull() & df["st_age"].notnull(), "st_age"]
+    ages_young = ages[ages < 0.1].count()
+    ages_count = ages.count()
+    ages_max = np.max(ages)
+    bins = 10
+    width = ages_max / bins
+    hist, edges = np.histogram(ages, bins=bins)
+    # x = (edges[1:] + edges[:-1])/2
+    x = edges[1:]
+    ax3.set_xlabel("Stellar Age (Gyr)")
+    ax3.set_xlim((0, ages_max))
+    ax3.set_ylabel("Counts")
+    ax3.set_title("Distribution of Stellar Age Estimates for Stars with an MHC")
+    ax3.bar(x, hist, align="edge", width=-width, label=f"All Stars with Calulable MHC ({ages_count})")
+    ax3.bar(width, ages_young, align="edge", width=-width, label=f"Young Stars <100Myr ({ages_young})")
+    plt.legend()
+    
+    # ages_errs = df.loc[df["MHC"].notnull(), "st_ageerr"]
+    # hist, edges = ax3.hist(ages, yerr=ages_errs)
+    # ax3.errorbar()
     plt.show()

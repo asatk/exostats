@@ -1,5 +1,6 @@
 from astropy.io import ascii
 from astropy.table import Table
+from astropy import units as u
 import os
 import pandas as pd
 
@@ -32,11 +33,11 @@ descriptions = {
         "e_Tauc": "Derived Uncertainty in Tauc",
         "Ro": "Rossby Number",
         "e_Ro": "Derived Uncertainty in Ro",
-        "RA": "Radius of Host Star's Mean Alfven Surface (au)",
+        "RA": "Host Star's Alfven Radius (au)",
         "e_RA": "Uncertainty in Alfven Radius (au)",
-        "RASun": "Radius of Host Star's Mean Alfven Surface (Rsun)",
+        "RASun": "Host Star's Alfven Radius (Rsun)",
         "e_RASun": "Uncertainty in Alfven Radius (Rsun)",
-        "MHC": "Magnetic Habitability Criterion",
+        "MHC": "Mag. Habitability Criterion",
         "e_MHC": "Derived Uncertainty in MHC",
         "mass_class": "Planet Mass Class",
         "rad_class": "Planet Radius Class",
@@ -64,29 +65,45 @@ descriptions = {
         "e_st_age": "Uncertainty in Stellar Age",
 }
 
+# u_mag = u.Unit("mag")
+u_mag = u.Unit("mag")
+u_day = u.Unit("d")
+u_Msun = u.Unit("Msun", format="cds")
+u_Rsun = u.Unit("Rsun", format="cds")
+u_au = u.Unit("au")
+u_Mgeo = u.Unit("Mgeo", format="cds")
+u_Rgeo = u.Unit("Rgeo", format="cds")
+u_Gyr = u.Unit("Gyr")
+u_dimless = u.Unit()
+
+u_Mgeo._names.reverse()
+u_Mgeo._short_names = ["Mgeo"]
+u_Mgeo._long_names = ["geoMass"]
+
+
 units = {
-    "sy_vmag": "mag",
-    "e_sy_vmag": "mag",
-    "sy_kmag": "mag",
-    "e_sy_kmag": "mag",
-    "st_mass": "Msun",
-    "e_st_mass": "Msun",
-    "Prot": "d",
-    "e_Prot": "d",
-    "Tauc": "d",
-    "e_Tauc": "d",
-    "RA": "au",
-    "e_RA": "au",
-    "RASun": "Rsun",
-    "e_RASun": "Rsun",
-    "pl_orbsmax": "au",
-    "e_pl_orbsmax": "au",
-    "pl_bmasse": "Mgeo",
-    "e_pl_bmasse": "Mgeo",
-    "pl_rade": "Rgeo",
-    "e_pl_rade": "Rgeo",
-    "st_age": "Gyr",
-    "e_st_age": "Gyr"
+    "sy_vmag": u_mag,
+    "e_sy_vmag": u_mag,
+    "sy_kmag": u_mag,
+    "e_sy_kmag": u_mag,
+    "st_mass": u_Msun,
+    "e_st_mass": u_Msun,
+    "Prot": u_day,
+    "e_Prot": u_day,
+    "Tauc": u_day,
+    "e_Tauc": u_day,
+    "RA": u_au,
+    "e_RA": u_au,
+    "RASun": u_Rsun,
+    "e_RASun": u_Rsun,
+    "pl_orbsmax": u_au,
+    "e_pl_orbsmax": u_au,
+    "pl_bmasse": u_Mgeo,
+    "e_pl_bmasse": u_Mgeo,
+    "pl_rade": u_Rgeo,
+    "e_pl_rade": u_Rgeo,
+    "st_age": u_Gyr,
+    "e_st_age": u_Gyr
 }
 
 latexnames = {
@@ -163,6 +180,7 @@ def round_columns(table: pd.DataFrame) -> None:
     round_col("pl_rade", 2)
     round_col("st_age", 2)
 
+
 def make_mrt():
 
     fname = "current-exo-data/alfven_data.csv"
@@ -172,19 +190,22 @@ def make_mrt():
     table.sort_values(by="pl_name", inplace=True)
 
     table_a = table.loc[:,table_cols]
-    # table_h = table.loc[(table["habitable"] == 1) & (table["MHC"] > 1) & ((table["mass_class"] == 1) | (table["rad_class"] == 1)), table_cols]
     table_mrt = Table.from_pandas(table_a)
 
     for col, desc in descriptions.items():
         if col in table_mrt.colnames:
             table_mrt[col].description = desc
 
-    for col, unit in units.items():
-        if col in table_mrt.colnames:
-            table_mrt[col].unit = unit
+    for col in table_cols:
+        unit = units.get(col, u_dimless)
+        table_mrt[col].unit = unit
+
+    print(table_mrt["pl_bmasse"].unit.__dict__)
 
     tempfname = "temp_tab1.txt"
     ascii.write(table_mrt, tempfname, overwrite=True, format="mrt")
+
+    # ascii.mrt
 
     meta = "Title: Exploring the Magnetic Habitability of Terrestrial Exoplanets in Circum-\nstellar Habitable Zones\n" + \
         "Authors: Anthony Atkinson, David Alexander, and Alison Farrish\n" + \
@@ -198,7 +219,7 @@ def make_mrt():
     print(f.readline())
     f_table = f.read(os.stat(tempfname).st_size)
     f.close()
-    print(f_table)
+    # print(f_table)
 
     mrtfname = "tab1.txt"
     f_mrt = open(mrtfname, "w")
@@ -209,10 +230,6 @@ def make_mrt():
 
 def make_tex():
     tab1 = ascii.read("tab1.txt", format="mrt")[:30][latexcols]
-    head = r"\tablehead{"
-    col_align = ""
-
-    print(tab1)
 
     for name in latexcols:
         if name in latexnames.keys():
@@ -222,12 +239,6 @@ def make_tex():
             # tab1[tab1[name].mask][name] = r"\nodata"
             newname = latexnames[name]
             tab1.rename_column(name, newname)
-            head += r"\colhead{%s}&"%(newname)
-            col_align += "c"
-
-
-    head = head[:-1]  # remove last &
-    head += r"}"
 
     caption = "Properties of Planets with Calculable MHC"
     comment = r"\tablecomments{Table 1 is published in its entirety in the machine-readable format. " + \
@@ -237,32 +248,20 @@ def make_tex():
     
     latexdict = {
         "caption": caption,
-        # "col_align": col_align,
         "tablefoot": comment,
-        # "tablehead": head,
         "tabletype": "deluxetable*",
         "units": units
     }
 
-    print(col_align)
-    print(head)
     ascii.write(table=tab1, output="tab1.tex", Writer=ascii.AASTex, latexdict=latexdict, overwrite=True)
-
-
-
 
 
 if __name__ == "__main__":
 
-    do_mrt = False
+    do_mrt = True
     do_tex = True
 
     if do_mrt:
         make_mrt()
     if do_tex:
         make_tex()
-    
-    # latex table
-    
-    
-    

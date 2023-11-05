@@ -65,7 +65,6 @@ descriptions = {
         "e_st_age": "Uncertainty in Stellar Age",
 }
 
-# u_mag = u.Unit("mag")
 u_mag = u.Unit("mag")
 u_day = u.Unit("d")
 u_Msun = u.Unit("Msun", format="cds")
@@ -79,7 +78,6 @@ u_dimless = u.Unit()
 u_Mgeo._names.reverse()
 u_Mgeo._short_names = ["Mgeo"]
 u_Mgeo._long_names = ["geoMass"]
-
 
 units = {
     "sy_vmag": u_mag,
@@ -192,34 +190,31 @@ def make_mrt():
     table_a = table.loc[:,table_cols]
     table_mrt = Table.from_pandas(table_a)
 
-    for col, desc in descriptions.items():
-        if col in table_mrt.colnames:
-            table_mrt[col].description = desc
+    # descriptions
+    for col in table_cols:
+        desc = descriptions.get(col, "")
+        table_mrt[col].description = desc
 
+    # units
     for col in table_cols:
         unit = units.get(col, u_dimless)
         table_mrt[col].unit = unit
 
-    print(table_mrt["pl_bmasse"].unit.__dict__)
-
     tempfname = "temp_tab1.txt"
     ascii.write(table_mrt, tempfname, overwrite=True, format="mrt")
 
-    # ascii.mrt
-
+    # Meta-table header
     meta = "Title: Exploring the Magnetic Habitability of Terrestrial Exoplanets in Circum-\nstellar Habitable Zones\n" + \
         "Authors: Anthony Atkinson, David Alexander, and Alison Farrish\n" + \
         "Table: Properties of Planets with Calculable MHC\n"
 
-
     f = open(tempfname, "r+")
     f.seek(0,0)
-    print(f.readline())
-    print(f.readline())
-    print(f.readline())
+    f.readline()
+    f.readline()
+    f.readline()
     f_table = f.read(os.stat(tempfname).st_size)
     f.close()
-    # print(f_table)
 
     mrtfname = "tab1.txt"
     f_mrt = open(mrtfname, "w")
@@ -229,31 +224,51 @@ def make_mrt():
 
 
 def make_tex():
-    tab1 = ascii.read("tab1.txt", format="mrt")[:30][latexcols]
+    tab = ascii.read("tab1.txt", format="mrt").to_pandas()
+    tab1: pd.DataFrame = tab.loc[:30, latexcols]
+    tab1.rename(columns=latexnames, inplace=True)
 
-    for name in latexcols:
-        if name in latexnames.keys():
-            # print(name)
-            # print(tab1[name])
-            # print(tab1[name].mask)
-            # tab1[tab1[name].mask][name] = r"\nodata"
-            newname = latexnames[name]
-            tab1.rename_column(name, newname)
+    newunits = {latexnames[k]: units.get(k) for k in latexcols}
+    tab1 = Table.from_pandas(tab1, units=newunits)
 
-    caption = "Properties of Planets with Calculable MHC"
+    caption = r"Properties of Planets with Calculable MHC"
+    col_align = "l" + "c" * (len(latexcols) - 1)
     comment = r"\tablecomments{Table 1 is published in its entirety in the machine-readable format. " + \
                 "A portion is shown here for guidance regarding its form and content." + \
                 "The complete version includes uncertainties on measured and derived quantities, " + \
                 "Alfv\'en Radius in AU, host star names, and references for rotation period measurements.}"
-    
+    preamble = "\n".join([r"\rotate",
+                          r"\tablenum{1}",
+                          r"\tablecolumns{14}",
+                          r"\tabletypesize{\footnotesize}",
+                          r"\tablewidth{0pt}"])
+
     latexdict = {
         "caption": caption,
+        "col_align": col_align,
+        "preamble": preamble,
         "tablefoot": comment,
         "tabletype": "deluxetable*",
         "units": units
     }
 
-    ascii.write(table=tab1, output="tab1.tex", Writer=ascii.AASTex, latexdict=latexdict, overwrite=True)
+    fname = "tab1.tex"
+    ascii.write(table=tab1, output=fname, Writer=ascii.AASTex, latexdict=latexdict, overwrite=True)
+
+
+    cmd = r'sed -E -i -e "s/\&\s*$/\& \\\\\\\\/" -e "s/\&\s+(\&|\\\\\\\\)/\& \\\\nodata \1/g" tab1.tex'
+    # cmd2 = r'sed -E "s/\&\s+(\&|\\\\\\\\)/\& \\\\nodata \1/g" tab1.tex'
+    os.system(cmd)
+    # os.system(cmd)
+
+    
+    # f = open(fname, "r+")
+    # f.seek(0,0)
+    # f.readline()
+    # f.readline()
+    # f.readline()
+    # f_table = f.read(os.stat(tempfname).st_size)
+    # f.close()
 
 
 if __name__ == "__main__":

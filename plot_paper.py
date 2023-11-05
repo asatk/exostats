@@ -27,12 +27,12 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, xcol: str, ycol: str,
             show_names=False, plot_err=False, xnudge: float=0.005,
             ynudge: float=0.025, reverse_grp: bool=False,
             highlight_habitable: bool=False, color_h: str=COLOR_HABITABLE,
-            marker_h: str="*", color_list: list[str]=COLORS_1,
+            marker_h: str="*", group: str="mass_class", color_list: list[str]=COLORS_1,
             class_list: list[str]=CLASS_LABELS, **kwargs):
 
     x = np.array(df[xcol])
     y = np.array(df[ycol])
-    grp_num = df["mass_class"].iat[0]  # TODO >>>> MUST CHANGE THIS could store grp num as index?
+    grp_num = df[group].iat[0]
     color = kwargs.get("color", color_list[grp_num])
     label = kwargs.get("label", f"{class_list[grp_num]} ({len(df)})")
     len_h = len(df[df["habitable"] == 1])
@@ -218,7 +218,7 @@ def plot_proc(df: pd.DataFrame, xcol: str, ycol: str, ax: plt.Axes,
         df_plot = df_subset
 
     if group is not None:
-        df_plot.apply(plot_df, ax=ax, xcol=xcol, ycol=ycol, show_names=show_names, logx=logx, logy=logy, **kwargs)
+        df_plot.apply(plot_df, ax=ax, xcol=xcol, ycol=ycol, show_names=show_names, logx=logx, logy=logy, group=group, **kwargs)
     else:
         plot_df(df=df_plot, ax=ax, xcol=xcol, ycol=ycol, show_names=show_names, logx=logx, logy=logy, **kwargs)
     
@@ -300,7 +300,7 @@ if __name__ == "__main__":
 
     # master plots
     save_path_1 = "imgs/Fig1.png"
-    fig, (ax1a, ax1b) = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(15,5))
+    fig, (ax1a, ax1b) = plt.subplots(nrows=2, ncols=1, sharey=True, figsize=(8,9))
     ax1a: plt.Axes
     ax1b: plt.Axes
 
@@ -310,7 +310,7 @@ if __name__ == "__main__":
     plot_proc(df, "st_mass", "MHC", ax1a, group=group,
         xlim=xlim_1a, ylim=ylim_1a, named_objs=None, logy=True, plot_err=False,
         color_list=colors, reverse_grp=True, highlight_habitable=True,
-        include_sol=True, use_leg=False, **plot_kwargs)
+        include_sol=True, leg_loc=1, **plot_kwargs)
 
     xlim_1b = (0.75, 7)
     ylim_1b = (0, 75)
@@ -318,43 +318,22 @@ if __name__ == "__main__":
     plot_proc(df, "VK_color", "MHC", ax1b, group=group,
         xlim=xlim_1b, ylim=ylim_1b, named_objs=None, logy=True, plot_err=False,
         color_list=colors, reverse_grp=True, highlight_habitable=True,
-        include_sol=True, leg_loc=1,**plot_kwargs)
+        include_sol=True, use_leg=False,**plot_kwargs)
 
     ax1a.annotate("a", xy=[0.02, 0.925], xycoords=ax1a.transAxes, fontsize=20)
     ax1b.annotate("b", xy=[0.02, 0.925], xycoords=ax1b.transAxes, fontsize=20)
 
     ax1a.set_xlabel(r"Stellar Mass $(M_\odot)$", fontsize=18)
-    ax1a.set_ylabel("MHC", fontsize=18)
+    # ax1a.set_ylabel("MHC", fontsize=18)
     ax1a.tick_params(labelsize=16)
     ax1b.set_xlabel(r"$V-K_s$ Color ($\Delta$mag)", fontsize=18)
     ax1b.tick_params(labelsize=16)
-
+    fig.supylabel("MHC", fontsize=18)
 
     fig.tight_layout()
     plt.savefig(save_path_1)
     plt.show()
     plt.close()
-
-
-    # fig, ax2 = plt.subplots(nrows=1, ncols=1, figsize=(10,5))
-    # ax2: plt.Axes
-
-    # xlim_2 = (0, None)
-    # ylim_2 = (0, 75)
-    # save_path_2 = "imgs/Fig2_mass.png"
-    # plot_err = [True, True, True, True]
-    # plot_proc(df_h, "st_mass", "MHC", ax2, group=group, xlim=xlim_2,
-    #     ylim=ylim_2, named_objs=named_objs, logy=True, plot_err=plot_err,
-    #     names_st=names_st, color_list=colors, reverse_grp=True,
-    #     highlight_habitable=False, include_sol=True, sort_col="MHC",
-    #     leg_loc=1, errxcol="st_masserr", errycol="dMHC", **plot_kwargs)
-    
-    # ax2.set_xlabel(r"Stellar Mass $(M_\odot)$", fontsize=18)
-    # ax2.set_ylabel("MHC", fontsize=18)
-    # ax2.tick_params(labelsize=16)
-    # fig.tight_layout()
-    # plt.savefig(save_path_2)
-    # plt.show()
 
 
     fig, ax2 = plt.subplots(nrows=1, ncols=1, figsize=(10,5))
@@ -377,6 +356,7 @@ if __name__ == "__main__":
     plt.savefig(save_path_2)
     plt.show()
 
+
     fig, ax3 = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
     ax3: plt.Axes
 
@@ -396,6 +376,8 @@ if __name__ == "__main__":
     ax3.bar(x, hist, align="edge", width=-width, label=f"All Stars with Calulable MHC ({ages_count})")
     ax3.bar(width, ages_young, align="edge", width=-width, label=f"Young Stars <100Myr ({ages_young})")
     plt.legend()
+    fig.tight_layout()
+    plt.savefig("imgs/ages.png")
     
     # ages_errs = df.loc[df["MHC"].notnull(), "st_ageerr"]
     # hist, edges = ax3.hist(ages, yerr=ages_errs)

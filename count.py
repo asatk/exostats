@@ -124,7 +124,7 @@ if __name__ == "__main__":
         (prot_sample_st["e_sy_vmag"].notnull() & prot_sample_st["e_sy_kmag"].notnull())
 
     print("HOSTS")
-    print(prot_sample_st.loc[where_err_st, ["sy_vmagerr", "sy_kmagerr"]].count())
+    print(prot_sample_st.loc[where_err_st, ["e_sy_vmag", "e_sy_kmag"]].count())
     print("EXOS")
     print(prot_sample.loc[where_err, ["e_sy_vmag", "e_sy_kmag"]].count())
 

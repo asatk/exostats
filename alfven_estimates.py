@@ -138,10 +138,13 @@ def choose_eRo(RoVK: pd.Series, RoM: pd.Series, dRoVK: pd.Series,
     return pd.Series(dRo, name="e_Ro", index=RoVK.index)
 
 
+r_sol = 6.957e8
+au = 1.496e11
 prot_sol = 27.
 ro_sol = 1.85
 dro_sol = 0.26
-ra_sol = 0.0930    #about 20Rsun
+ra_sol = 20 * r_sol / au
+
 # ra_sol = 0.0451 # 9.7Rsun
 # ra_sol = 0.1383 # 695700km in AU
 dra_sol = 0.2 * ra_sol  # 20% error (cycle variation)
@@ -274,15 +277,14 @@ def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     alfven_data = data.copy(deep=False)
     alfven_data["RA"] = ra
     alfven_data["e_RA"] = dra
+    alfven_data["RASun"] = ra * r_sol / au
+    alfven_data["e_RASun"] = dra * r_sol / au
     alfven_data["LX"] = lx
     alfven_data["e_LX"] = dlx
     alfven_data["MHC"] = mhc
     alfven_data["e_MHC"] = dmhc
     
-    #optional: remove 99th quantile and bad vals
-    # alfven_data = alfven_data[(alfven_data['Ro'] < np.quantile(alfven_data['Ro'], 0.99)) & (alfven_data['MHC'] < np.quantile(alfven_data['MHC'], 0.99))]
     alfven_data = alfven_data[(alfven_data["Ro"] > 0.0) & (alfven_data["MHC"] > 0.0)]
-
 
     return alfven_data
 

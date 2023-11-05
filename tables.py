@@ -1,3 +1,4 @@
+# from astropy.io import ascii
 import numpy as np
 import pandas as pd
 
@@ -30,6 +31,8 @@ if __name__ == "__main__":
     terrans = good_pls[good_pls["mass_class"] == 1].sort_values(by="MHC")
     superterrans = good_pls[good_pls["mass_class"] == 2].sort_values(by="MHC")
 
+    # Table 2
+
     print(" --- TERRAN --- ")
     for num, (_, row) in enumerate(terrans.iterrows()):
         print_table(row["pl_name"], row["Ro"], row["dRo"], row["MHC"], row["dMHC"], num + 1)
@@ -37,3 +40,7 @@ if __name__ == "__main__":
     print(" --- SUPERTERRAN --- ")
     for _, row in superterrans.iterrows():
         print_table(row["pl_name"], row["Ro"], row["dRo"], row["MHC"], row["dMHC"], None)
+
+    # Table 1
+    # tab1 = ascii.read("tab1.txt", format="mrt-table")
+    # ascii.write(table=tab1, Writer=ascii.Latex, units=tab1.units)

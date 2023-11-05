@@ -1,6 +1,7 @@
 __pycache__
 *.csv
 *.png
+*.tex
 *.txt
 *.dat
 *.ipynb

@@ -66,7 +66,7 @@ def plot_df(df: pd.DataFrame, ax: plt.Axes, xcol: str, ycol: str,
         ytext = (y * (1 + ynudge)) if logy else (y + ynudge)
         name = df["plot_name"]
         ct = x.shape[0]
-        kwargs = ct * [{"fontsize": 10, "zorder": 10.0}]
+        kwargs = ct * [{"fontsize": 12, "zorder": 10.0}]
         list(map(plt.text, xtext, ytext, name, kwargs))
 
     scatter_zorder = 5 - (grp_num if reverse_grp else -grp_num)

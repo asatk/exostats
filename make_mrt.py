@@ -1,6 +1,7 @@
 from astropy.io import ascii
 from astropy.table import Table
 from astropy import units as u
+import numpy as np
 import os
 import pandas as pd
 
@@ -105,7 +106,7 @@ units = {
 }
 
 latexnames = {
-    "pl_name": "Name",
+    "pl_name": "Planet Name",
     "hostname": "Host Name",
     "sy_vmag": "V",
     "e_sy_vmag": r"$\delta$ V",
@@ -165,6 +166,7 @@ def round_columns(table: pd.DataFrame) -> None:
 
     round_col("sy_vmag", 3)
     round_col("sy_kmag", 3)
+    round_col("VK_color", 3)
     round_col("st_mass", 2)
     round_col("Prot", 3)
     round_col("Tauc", 3)
@@ -179,26 +181,12 @@ def round_columns(table: pd.DataFrame) -> None:
     round_col("st_age", 2)
 
 
-def make_mrt():
-
-    fname = "current-exo-data/alfven_data.csv"
-    table = ascii.read(fname, format="csv").to_pandas()
-    round_columns(table)
-
-    table.sort_values(by="pl_name", inplace=True)
-
-    table_a = table.loc[:,table_cols]
-    table_mrt = Table.from_pandas(table_a)
+def make_mrt(table_mrt: Table):
 
     # descriptions
     for col in table_cols:
         desc = descriptions.get(col, "")
         table_mrt[col].description = desc
-
-    # units
-    for col in table_cols:
-        unit = units.get(col, u_dimless)
-        table_mrt[col].unit = unit
 
     tempfname = "temp_tab1.txt"
     ascii.write(table_mrt, tempfname, overwrite=True, format="mrt")
@@ -224,7 +212,9 @@ def make_mrt():
 
 
 def make_tex():
-    tab = ascii.read("tab1.txt", format="mrt").to_pandas()
+
+    mrtfname = "tab1.txt"
+    tab = ascii.read(mrtfname, format="mrt").to_pandas()
     tab1: pd.DataFrame = tab.loc[:30, latexcols]
     tab1.rename(columns=latexnames, inplace=True)
 
@@ -252,31 +242,131 @@ def make_tex():
         "units": units
     }
 
-    fname = "tab1.tex"
-    ascii.write(table=tab1, output=fname, Writer=ascii.AASTex, latexdict=latexdict, overwrite=True)
+    texfname = "tab1.tex"
+    ascii.write(table=tab1, output=texfname, Writer=ascii.AASTex, latexdict=latexdict, overwrite=True)
 
 
     cmd = r'sed -E -i -e "s/\&\s*$/\& \\\\\\\\/" -e "s/\&\s+(\&|\\\\\\\\)/\& \\\\nodata \1/g" tab1.tex'
-    # cmd2 = r'sed -E "s/\&\s+(\&|\\\\\\\\)/\& \\\\nodata \1/g" tab1.tex'
     os.system(cmd)
-    # os.system(cmd)
 
+
+def make_tex2(df: pd.DataFrame):
+
+    tab2cols = ["pl_name",
+                "VK_color", "e_VK_color",
+                "st_mass", "e_st_mass",
+                "Ro", "e_Ro",
+                "MHC", "e_MHC",
+                "mass_class", "rad_class"]
+
+    tab2units = {
+        r"$V - K_s$": r"$\Delta mag$",
+        r"$M_*$": "Msun"
+    }
+
+    tab2names = {
+        "pl_name": "Planet Name",
+        "vk_str": r"$V - K_s$",
+        "stm_str": r"$M_*$",
+        "ro_str": "Stellar Rossby Number",
+        "mhc_str": "MHC"
+    }
+
+    tab2tnames = {
+        "NoFig2": "No. on Fig. 2",
+        **tab2names
+    }
+
+    tab2tlatexdict = {
+        "caption": r"Properties of Terran CHZ Exoplanets with MHC $> 1$",
+        "col_align": "lccccc",
+        "preamble": r"\tablenum{2}",
+        "tablefoot": r"\tablecomments{" + \
+             "These 11 Terran planets (Earth-sized) are classified as such based on mass measurements fitting within " + \
+             r"the range $0.5-3.0M_\Earth$. When instead classifying by planet radius measurements, which " + \
+             r"must fit within $0.8-1.6R_\Earth$, a twelfth planet joins the Terran classification: Kepler-62 f.}",
+        "tabletype": "deluxetable*"
+    }
+
+    tab2stlatexdict = {
+        "caption": r"Properties of Superterran CHZ Exoplanets with MHC $> 1$",
+        "col_align": "lcccc",
+        "preamble": r"\tablenum{3}",
+        "tablefoot": r"\tablecomments{" + \
+             "These 20 Superterran planets (Super-Earth-sized) are classified as such based on mass measurements fitting within " + \
+             r"the range $3.0-10.0M_\Earth$. When instead classifying by planet radius measurements, which " + \
+             r"must fit within $1.6-2.5R_\Earth$, the number of Superterran planets changes to 12.}",
+        "tabletype": "deluxetable*"
+    }
     
-    # f = open(fname, "r+")
-    # f.seek(0,0)
-    # f.readline()
-    # f.readline()
-    # f.readline()
-    # f_table = f.read(os.stat(tempfname).st_size)
-    # f.close()
+    df_h = df.loc[(df["habitable"] == 1) & (df["MHC"] > 1), tab2cols]
+    terrans = df_h.loc[df_h["mass_class"] == 1].sort_values(by="MHC")
+    superterrans = df_h.loc[df_h["mass_class"] == 2].sort_values(by="MHC")
+
+    def fill(row, col: str):
+        s = rf"${row[col]}"
+        unc_col = f"e_{col}"
+        if not np.isnan(row[unc_col]):
+            s += rf"\pm{row[unc_col]}"
+        
+        s += "$"
+        return s
+
+
+    # terran
+    terrans["vk_str"] = terrans.apply(lambda r: fill(r, "VK_color"), axis=1)
+    terrans["stm_str"] = terrans.apply(lambda r: fill(r, "st_mass"), axis=1)
+    terrans["ro_str"] = terrans.apply(lambda r: fill(r, "Ro"), axis=1)
+    terrans["mhc_str"] = terrans.apply(lambda r: fill(r, "MHC"), axis=1)
+    terrans["NoFig2"] = terrans.groupby("MHC", sort=False).ngroup() + 1
+    tab2tcols = ["pl_name", "vk_str", "stm_str", "ro_str", "mhc_str", "NoFig2"]
+    terrans_tex = terrans[tab2tcols]
+    terrans_tex.rename(columns=tab2tnames, inplace=True)
+
+    # superterran
+    superterrans["vk_str"] = superterrans.apply(lambda r: fill(r, "VK_color"), axis=1)
+    superterrans["stm_str"] = superterrans.apply(lambda r: fill(r, "st_mass"), axis=1)
+    superterrans["ro_str"] = superterrans.apply(lambda r: fill(r, "Ro"), axis=1)
+    superterrans["mhc_str"] = superterrans.apply(lambda r: fill(r, "MHC"), axis=1)
+    tab2stcols = ["pl_name", "vk_str", "stm_str", "ro_str", "mhc_str"]
+    superterrans_tex = superterrans[tab2stcols]
+    superterrans_tex.rename(columns=tab2names, inplace=True)
+
+
+
+    table_t = Table.from_pandas(terrans_tex, units=tab2units)
+    table_st = Table.from_pandas(superterrans_tex, units=tab2units)
+    
+    tfname = "tab2t.tex"
+    stfname = "tab2st.tex"
+    ascii.write(table=table_t, output=tfname, Writer=ascii.AASTex, latexdict=tab2tlatexdict, overwrite=True)
+    ascii.write(table=table_st, output=stfname, Writer=ascii.AASTex, latexdict=tab2stlatexdict, overwrite=True)
+
+    cmd = r'sed -E -i -e "s/\&\s*$/\& \\\\\\\\/" -e "s/\&\s+(\&|\\\\\\\\)/\& \\\\nodata \1/g" tab2t.tex'
+    os.system(cmd)
+
+    cmd = r'sed -E -i -e "s/\&\s*$/\& \\\\\\\\/" -e "s/\&\s+(\&|\\\\\\\\)/\& \\\\nodata \1/g" tab2st.tex'
+    os.system(cmd)
+
+    cmd = r'sed -E -i -e "s/\&\s+\&/\&/g" tab2t.tex tab2st.tex'
+    os.system(cmd)
 
 
 if __name__ == "__main__":
 
-    do_mrt = True
-    do_tex = True
+    do_mrt = False
+    do_tex = False
+    do_tex2 = True
+
+    fname = "current-exo-data/alfven_data.csv"
+    table = ascii.read(fname, format="csv").to_pandas()
+    round_columns(table)
+    table.sort_values(by="pl_name", inplace=True)
+    table_mrt = Table.from_pandas(table.loc[:,table_cols], units=units)
 
     if do_mrt:
-        make_mrt()
+        make_mrt(table_mrt)
     if do_tex:
         make_tex()
+    if do_tex2:
+        make_tex2(table)

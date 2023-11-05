@@ -389,9 +389,6 @@ def calculate_exos() -> pd.DataFrame:
     # Estimate Ro from Wright et. al. 2018 Tc formulae
     prot_data = estimate_rossby(prot_data)
 
-    # print("[taucVK: out of range] {}".format(len(prot_data[prot_data["TaucVK"].isnull()])))
-    # print("[taucM: out of range] {}".format(len(prot_data[prot_data["TaucM"].isnull()])))
-
     # List exoplanets that have all of the relevant stats: Ro, a, e 
     data_col_list = ["pl_name", "hostname", "pl_letter", "pl_orbsmax",
         "e_pl_orbsmax", "pl_orbeccen", "e_pl_orbeccen", "pl_rade", "e_pl_rade",
@@ -413,7 +410,6 @@ def calculate_exos() -> pd.DataFrame:
     alfven_data = planet_classes(alfven_data)
 
     alfven_data.rename(columns={"db": "r_Prot"}, inplace=True)
-    print(alfven_data.columns)
 
     alfven_data.to_csv("current-exo-data/alfven_data.csv", index=False)
     return alfven_data

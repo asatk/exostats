@@ -300,7 +300,8 @@ if __name__ == "__main__":
 
     # master plots
     save_path_1 = "imgs/Fig1.png"
-    fig, (ax1a, ax1b) = plt.subplots(nrows=2, ncols=1, sharey=True, figsize=(8,9))
+    # fig, (ax1a, ax1b) = plt.subplots(nrows=2, ncols=1, sharey=True, figsize=(8,9))
+    fig, (ax1a, ax1b) = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(16,6))
     ax1a: plt.Axes
     ax1b: plt.Axes
 
@@ -360,7 +361,8 @@ if __name__ == "__main__":
     fig, ax3 = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
     ax3: plt.Axes
 
-    ages = df.loc[df["MHC"].notnull() & df["st_age"].notnull(), "st_age"]
+    df_st = df.drop_duplicates(subset="hostname")
+    ages = df.loc[df["Prot"].notnull() & df["st_age"].notnull(), "st_age"]
     ages_young = ages[ages < 0.1].count()
     ages_count = ages.count()
     ages_max = np.max(ages)
@@ -372,8 +374,8 @@ if __name__ == "__main__":
     ax3.set_xlabel("Stellar Age (Gyr)")
     ax3.set_xlim((0, ages_max))
     ax3.set_ylabel("Counts")
-    ax3.set_title("Distribution of Stellar Age Estimates for Stars with an MHC")
-    ax3.bar(x, hist, align="edge", width=-width, label=f"All Stars with Calulable MHC ({ages_count})")
+    ax3.set_title(r"Distribution of Stellar Age Estimates for Stars with a $P_{rot}")
+    ax3.bar(x, hist, align="edge", width=-width, label=f"All Stars with Measured $P_{{rot}}$ ({ages_count})")
     ax3.bar(width, ages_young, align="edge", width=-width, label=f"Young Stars <100Myr ({ages_young})")
     plt.legend()
     fig.tight_layout()

@@ -192,12 +192,16 @@ def make_mrt(table_mrt: Table):
     ascii.write(table_mrt, tempfname, overwrite=True, format="mrt")
 
     # Meta-table header
-    meta = "Title: Exploring the Magnetic Habitability of Terrestrial Exoplanets in Circum-\nstellar Habitable Zones\n" + \
+    meta = "Title: Exploring the Magnetic Habitability of Exoplanets\n" + \
         "Authors: Anthony Atkinson, David Alexander, and Alison Farrish\n" + \
-        "Table: Properties of Planets with Calculable MHC\n"
+        "Table: Properties of Planets in our Magnetic Habitability Criterion Sample\n" + \
+        "================================================================================\n" + \
+        "Byte-by-byte Description of file: tab1.txt\n"
 
     f = open(tempfname, "r+")
     f.seek(0,0)
+    f.readline()
+    f.readline()
     f.readline()
     f.readline()
     f.readline()
@@ -221,7 +225,7 @@ def make_tex():
     newunits = {latexnames[k]: units.get(k) for k in latexcols}
     tab1 = Table.from_pandas(tab1, units=newunits)
 
-    caption = r"Properties of Planets with Calculable MHC"
+    caption = r"Properties of Planets in our Magnetic Habitability Criterion Sample"
     col_align = "l" + "c" * (len(latexcols) - 1)
     comment = r"\tablecomments{Table 1 is published in its entirety in the machine-readable format. " + \
                 "A portion is shown here for guidance regarding its form and content." + \
@@ -278,24 +282,22 @@ def make_tex2(df: pd.DataFrame):
     }
 
     tab2tlatexdict = {
-        "caption": r"Properties of Terran CHZ Exoplanets with MHC $> 1$",
+        "caption": r"Properties of Terran CHZ Planets with MHC $> 1$",
         "col_align": "lccccc",
         "preamble": r"\tablenum{2}",
         "tablefoot": r"\tablecomments{" + \
              "These 11 Terran planets (Earth-sized) are classified as such based on mass measurements fitting within " + \
-             r"the range $0.5-3.0M_\Earth$. When instead classifying by planet radius measurements, which " + \
-             r"must fit within $0.8-1.6R_\Earth$, a twelfth planet joins the Terran classification: Kepler-62 f.}",
+             r"the range $0.5-3.0M_\Earth$.}",
         "tabletype": "deluxetable*"
     }
 
     tab2stlatexdict = {
-        "caption": r"Properties of Superterran CHZ Exoplanets with MHC $> 1$",
+        "caption": r"Properties of Superterran CHZ Planets with MHC $> 1$",
         "col_align": "lcccc",
         "preamble": r"\tablenum{3}",
         "tablefoot": r"\tablecomments{" + \
              "These 20 Superterran planets (Super-Earth-sized) are classified as such based on mass measurements fitting within " + \
-             r"the range $3.0-10.0M_\Earth$. When instead classifying by planet radius measurements, which " + \
-             r"must fit within $1.6-2.5R_\Earth$, the number of Superterran planets changes to 12.}",
+             r"the range $3.0-10.0M_\Earth$.}",
         "tabletype": "deluxetable*"
     }
     
@@ -354,8 +356,8 @@ def make_tex2(df: pd.DataFrame):
 
 if __name__ == "__main__":
 
-    do_mrt = False
-    do_tex = False
+    do_mrt = True
+    do_tex = True
     do_tex2 = True
 
     fname = "current-exo-data/alfven_data.csv"

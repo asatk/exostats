@@ -203,13 +203,14 @@ if __name__ == "__main__":
     print(d2L, d2R)
 
     # AGES
-    ages = MHC_sample["st_age"]
+    ages = prot_sample_st["st_age"]
+    ages_count = ages.count()
     ages_min = np.min(ages)
     ages_max = np.max(ages)
     ages_mean = np.mean(ages)
     ages_med =  np.median(ages)
     ages_std = np.std(ages)
-    print(f"[EXOS] - AGES\n - min {ages_min}\n - max {ages_max}\n - {ages_mean}\n - {ages_mean}\n - median {ages_med}\n - std {ages_std}")
+    print(f"[EXOS] - [{ages_count}] AGES\n - min {ages_min}\n - max {ages_max}\n - {ages_mean}\n - {ages_mean}\n - median {ages_med}\n - std {ages_std}")
     
     MHC_young = ages[ages < 0.1].count()
     MHC_ms = ages[(ages >= 0.1) & (ages <= 4.5)].count()

@@ -148,7 +148,7 @@ ra_sol = 20 * r_sol / au
 # ra_sol = 0.0451 # 9.7Rsun
 # ra_sol = 0.1383 # 695700km in AU
 dra_sol = 0.2 * ra_sol  # 20% error (cycle variation)
-r_sol = 1.
+# r_sol = 1.
 s = -1.38
 ds = 0.14
 r = -0.16
@@ -277,8 +277,8 @@ def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     alfven_data = data.copy(deep=False)
     alfven_data["RA"] = ra
     alfven_data["e_RA"] = dra
-    alfven_data["RASun"] = ra * r_sol / au
-    alfven_data["e_RASun"] = dra * r_sol / au
+    alfven_data["RASun"] = ra * au / r_sol
+    alfven_data["e_RASun"] = dra * au / r_sol
     alfven_data["LX"] = lx
     alfven_data["e_LX"] = dlx
     alfven_data["MHC"] = mhc

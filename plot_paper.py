@@ -4,6 +4,9 @@ from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
 
+from alfven_estimates import ra_schrijver, taucM
+from matplotlib import cm
+
 
 COLORS_MPL = ["C0", "C1", "C2", "C3", "C4"]
 COLORS_1 = ["red", "blue", "green", "orange", "purple"]
@@ -278,27 +281,19 @@ def add_solar_system_planets(df: pd.DataFrame, use_names: bool=False) -> pd.Data
     return pd.concat([df, sol], ignore_index=True)
 
 
-if __name__ == "__main__":
+def plot_fig1(df: pd.DataFrame):
 
     group = "mass_class"
-    add_sol = True
-    names_st = False
     
     colors = ["red", "green", "mediumorchid", "orange", "black"]
     color_h = "royalblue"
 
     # Load planet habitability and plotting data
-    df = pd.read_csv('current-exo-data/alfven_data.csv')
-    df_h = df[df["habitable"] == 1].reset_index()
-
-    named_stars = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["hostname"].drop_duplicates().to_list()
-    named_planets = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["pl_name"].to_list()
-    named_objs = named_stars if names_st else named_planets
+    df_h = df[df["habitable"] == 1]
 
     plot_kwargs = {"alpha": 1.0, "s": 15, "lw_e": 1.0, "alpha_e": 0.25,
                    "s_h": 100, "color_h": color_h, "marker_h": "*", "label_h": f"CHZ ({len(df_h)})"}
 
-    # master plots
     save_path_1 = "imgs/Fig1.png"
     # fig, (ax1a, ax1b) = plt.subplots(nrows=2, ncols=1, sharey=True, figsize=(8,9))
     fig, (ax1a, ax1b) = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(16,6))
@@ -307,7 +302,7 @@ if __name__ == "__main__":
 
     xlim_1a = (0, None)
     ylim_1a = (0, 75)
-    save_path_1a = "imgs/Fig1a.png"
+    # save_path_1a = "imgs/Fig1a.png"
     plot_proc(df, "st_mass", "MHC", ax1a, group=group,
         xlim=xlim_1a, ylim=ylim_1a, named_objs=None, logy=True, plot_err=False,
         color_list=colors, reverse_grp=True, highlight_habitable=True,
@@ -315,7 +310,7 @@ if __name__ == "__main__":
 
     xlim_1b = (0.75, 7)
     ylim_1b = (0, 75)
-    save_path_1b = "imgs/Fig1b.png"
+    # save_path_1b = "imgs/Fig1b.png"
     plot_proc(df, "VK_color", "MHC", ax1b, group=group,
         xlim=xlim_1b, ylim=ylim_1b, named_objs=None, logy=True, plot_err=False,
         color_list=colors, reverse_grp=True, highlight_habitable=True,
@@ -333,10 +328,28 @@ if __name__ == "__main__":
 
     fig.tight_layout()
     plt.savefig(save_path_1)
-    plt.show()
+    # plt.show()
     plt.close()
 
 
+def plot_fig2(df: pd.DataFrame):
+    group = "mass_class"
+    add_sol = True
+    names_st = False
+    
+    colors = ["red", "green", "mediumorchid", "orange", "black"]
+    color_h = "royalblue"
+
+    # Load planet habitability and plotting data
+    df_h = df[df["habitable"] == 1].reset_index()
+
+    named_stars = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["hostname"].drop_duplicates().to_list()
+    named_planets = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["pl_name"].to_list()
+    named_objs = named_stars if names_st else named_planets
+
+    plot_kwargs = {"alpha": 1.0, "s": 15, "lw_e": 1.0, "alpha_e": 0.25,
+                   "s_h": 100, "color_h": color_h, "marker_h": "*", "label_h": f"CHZ ({len(df_h)})"}
+    
     fig, ax2 = plt.subplots(nrows=1, ncols=1, figsize=(10,5))
     ax2: plt.Axes
 
@@ -355,9 +368,28 @@ if __name__ == "__main__":
     ax2.tick_params(labelsize=16)
     fig.tight_layout()
     plt.savefig(save_path_2)
-    plt.show()
+    # plt.show()
+    plt.close()
 
 
+def plot_fig3(df: pd.DataFrame):
+    group = "mass_class"
+    add_sol = True
+    names_st = False
+    
+    colors = ["red", "green", "mediumorchid", "orange", "black"]
+    color_h = "royalblue"
+
+    # Load planet habitability and plotting data
+    df_h = df[df["habitable"] == 1].reset_index()
+
+    named_stars = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["hostname"].drop_duplicates().to_list()
+    named_planets = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["pl_name"].to_list()
+    named_objs = named_stars if names_st else named_planets
+
+    plot_kwargs = {"alpha": 1.0, "s": 15, "lw_e": 1.0, "alpha_e": 0.25,
+                   "s_h": 100, "color_h": color_h, "marker_h": "*", "label_h": f"CHZ ({len(df_h)})"}
+    
     fig, ax3 = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
     ax3: plt.Axes
 
@@ -380,8 +412,64 @@ if __name__ == "__main__":
     plt.legend()
     fig.tight_layout()
     plt.savefig("imgs/ages.png")
+    # plt.show()
+    plt.close()
+
+
+def plot_fig4(df: pd.DataFrame):
+
+    # Load planet habitability and plotting data
+    df_h = df[df["habitable"] == 1].reset_index()
     
-    # ages_errs = df.loc[df["MHC"].notnull(), "st_ageerr"]
-    # hist, edges = ax3.hist(ages, yerr=ages_errs)
-    # ax3.errorbar()
+    fig, ax4 = plt.subplots(nrows=1, ncols=1, figsize=(10,10))
+    ax4: plt.Axes
+    cmap = cm.get_cmap("viridis")
+
+    x = df_h["pl_orbsmax"]
+    y = df_h["Prot"]
+    z = df_h["st_mass"]
+    s = 200*(df_h["pl_bmasse"] - min(df_h["pl_bmasse"])) / max(df_h["pl_bmasse"]) - min(df_h["pl_bmasse"]) + 10
+    
+
+    ax4.set_xlabel("a (AU)", fontsize=18)
+    ax4.set_ylabel("Prot", fontsize=18)
+    ax4.tick_params(labelsize=16, size=5)
+
+    im = plt.scatter(x, y, c=z, marker="o", s=s)
+    cb = fig.colorbar(im, ax=ax4, cmap=cmap)
+    cb.set_label("$M^*\;(M_\odot)$", fontsize=18)
+    cb.ax.tick_params(labelsize=16)
+    
+
+    npoints = 100
+    mvals = pd.Series([0.5, 0.75, 1.0, 1.25])
+    protvals = np.linspace(min(y), max(y), num=npoints)
+    rovals = np.outer(1/taucM(mvals), protvals).T
+    ravals = ra_schrijver(rovals)
+    labels = [f"Mean AS Radius for $M^*$={i}" for i in mvals]
+    c = [cmap((mval - min(z)) / (max(z)-min(z))) for mval in mvals]
+    ax4.set_prop_cycle("color", c)
+
+
+    ax4.plot(ravals, np.repeat(protvals, repeats=len(mvals), axis=0).reshape((npoints,len(mvals))), label=labels)
+
+    ax4.tick_params(labelsize=16, size=5)
+    ax4.set_xscale("log")
+    ax4.set_yscale("log")
+    fig.tight_layout()
+    plt.legend()
+    fig.savefig("imgs/newfigProt.png")
     plt.show()
+
+
+if __name__ == "__main__":
+
+    # Load planet habitability and plotting data
+    df = pd.read_csv('current-exo-data/alfven_data.csv')
+    df_h = df[df["habitable"] == 1].reset_index()
+
+    # master plots
+    # plot_fig1(df)
+    # plot_fig2(df)
+    # plot_fig3(df)
+    plot_fig4(df)

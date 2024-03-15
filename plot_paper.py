@@ -1,5 +1,6 @@
 import matplotlib as mpl
 from matplotlib import pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.legend_handler import HandlerPathCollection
 import numpy as np
 import pandas as pd
@@ -7,6 +8,27 @@ import pandas as pd
 from alfven_estimates import ra_schrijver, taucM, taucVK
 from matplotlib import cm
 
+CMAP1 = LinearSegmentedColormap("CMAP1", dict(
+    red=[(0.0, 0.0, 0.0),
+         (0.5, 0.5, 0.5),
+         (1.0, 1.0, 1.0)],
+    green=[(0.0, 0.0, 0.0),
+           (0.5, 0.5, 0.5),
+           (1.0, 1.0, 1.0)],
+    blue=[(0.0, 0.0, 0.0),
+          (0.5, 0.5, 0.5),
+          (1.0, 1.0, 1.0)]
+))
+CMAP2 = LinearSegmentedColormap.from_list("CMAP2", [
+    "saddlebrown",
+    "darkred",
+    "red",
+    "orange",
+    "yellow"
+])
+
+cm.register_cmap(cmap=CMAP1)
+cm.register_cmap(cmap=CMAP2)
 
 COLORS_MPL = ["C0", "C1", "C2", "C3", "C4"]
 COLORS_1 = ["red", "blue", "green", "orange", "purple"]
@@ -20,13 +42,13 @@ NAMED_STARS = ["BD-11 4672", "GJ 1132", "GJ 3293", "K2-3", "Kepler-186",
                "TRAPPIST-1", "Wolf 1061"]
 NAMED_PLANETS = ["GJ 3323 c", "K2-3 d", "Kepler-186 f", "Kepler-296 e",
                  "Kepler-438 b", "Kepler-1229 b", "TOI-700 d", "TOI-700 e",
-                 "TRAPPIST-1 f", "TRAPPIST-1 g"] # CHZ terran MHC>1
+                 "TRAPPIST-1 f", "TRAPPIST-1 g"] # CHZ terran ASHC>1
 SOL_NAMES = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn",
              "Uranus", "Neptune"]
 
 
 def plot_df(df: pd.DataFrame, ax: plt.Axes, xcol: str, ycol: str,
-            errxcol: str="dRo", errycol: str="dMHC", logx=False, logy=False,
+            errxcol: str="dRo", errycol: str="dASHC", logx=False, logy=False,
             show_names=False, plot_err=False, xnudge: float=0.005,
             ynudge: float=0.025, reverse_grp: bool=False,
             highlight_habitable: bool=False, color_h: str=COLOR_HABITABLE,
@@ -269,8 +291,8 @@ def add_solar_system_planets(df: pd.DataFrame, use_names: bool=False) -> pd.Data
         "Ro": [ro_sol, ro_sol, ro_sol],
         "e_Ro": [dro_sol, dro_sol, dro_sol],
         "rperi": [r_p_venus, r_p_earth, r_p_mars],
-        "MHC": [r_p_venus / ra_sol, r_p_earth / ra_sol, r_p_mars / ra_sol],
-        "e_MHC": [dra_sol, dra_sol, dra_sol],
+        "ASHC": [r_p_venus / ra_sol, r_p_earth / ra_sol, r_p_mars / ra_sol],
+        "e_ASHC": [dra_sol, dra_sol, dra_sol],
         "st_mass": [1., 1., 1.],
         "VK_color": [vk_color_sol, vk_color_sol, vk_color_sol],
         "mass_class": [1, 1, 0],
@@ -287,7 +309,8 @@ def add_solar_system_planets(df: pd.DataFrame, use_names: bool=False) -> pd.Data
     return pd.concat([df, sol], ignore_index=True)
 
 
-def plot_fig1(df: pd.DataFrame):
+# just do a simple plot(df - df_h) empty markers + plot(df_h) filled markers
+def plot_old_fig1(df: pd.DataFrame):
 
     group = "mass_class"
     
@@ -309,7 +332,7 @@ def plot_fig1(df: pd.DataFrame):
     xlim_1a = (0, None)
     ylim_1a = (0, 75)
     # save_path_1a = "imgs/Fig1a.png"
-    plot_proc(df, "st_mass", "MHC", ax1a, group=group,
+    plot_proc(df, "st_mass", "ASHC", ax1a, group=group,
         xlim=xlim_1a, ylim=ylim_1a, named_objs=None, logy=True, plot_err=False,
         color_list=colors, reverse_grp=True, highlight_habitable=True,
         include_sol=True, leg_loc=1, **plot_kwargs)
@@ -317,7 +340,7 @@ def plot_fig1(df: pd.DataFrame):
     xlim_1b = (0.75, 7)
     ylim_1b = (0, 75)
     # save_path_1b = "imgs/Fig1b.png"
-    plot_proc(df, "VK_color", "MHC", ax1b, group=group,
+    plot_proc(df, "VK_color", "ASHC", ax1b, group=group,
         xlim=xlim_1b, ylim=ylim_1b, named_objs=None, logy=True, plot_err=False,
         color_list=colors, reverse_grp=True, highlight_habitable=True,
         include_sol=True, use_leg=False,**plot_kwargs)
@@ -326,11 +349,11 @@ def plot_fig1(df: pd.DataFrame):
     ax1b.annotate("b", xy=[0.02, 0.925], xycoords=ax1b.transAxes, fontsize=20)
 
     ax1a.set_xlabel(r"Stellar Mass $(M_\odot)$", fontsize=18)
-    # ax1a.set_ylabel("MHC", fontsize=18)
+    # ax1a.set_ylabel("ASHC", fontsize=18)
     ax1a.tick_params(labelsize=16)
     ax1b.set_xlabel(r"$V-K_s$ Color ($\Delta$mag)", fontsize=18)
     ax1b.tick_params(labelsize=16)
-    fig.supylabel("MHC", fontsize=18)
+    fig.supylabel("ASHC", fontsize=18)
 
     fig.tight_layout()
     plt.savefig(save_path_1)
@@ -349,8 +372,8 @@ def plot_fig2(df: pd.DataFrame):
     # Load planet habitability and plotting data
     df_h = df[df["habitable"] == 1].reset_index()
 
-    named_stars = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["hostname"].drop_duplicates().to_list()
-    named_planets = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["pl_name"].to_list()
+    named_stars = df_h[(df_h[group] == 1) & (df_h["ASHC"] > 1)]["hostname"].drop_duplicates().to_list()
+    named_planets = df_h[(df_h[group] == 1) & (df_h["ASHC"] > 1)]["pl_name"].to_list()
     named_objs = named_stars if names_st else named_planets
 
     plot_kwargs = {"alpha": 1.0, "s": 15, "lw_e": 1.0, "alpha_e": 0.25,
@@ -363,14 +386,14 @@ def plot_fig2(df: pd.DataFrame):
     ylim_2 = (0, 75)
     save_path_2 = "imgs/Fig2_color.png"
     plot_err = [True, True, True, True]
-    plot_proc(df_h, "VK_color", "MHC", ax2, group=group, xlim=xlim_2,
+    plot_proc(df_h, "VK_color", "ASHC", ax2, group=group, xlim=xlim_2,
         ylim=ylim_2, named_objs=named_objs, logy=True, plot_err=plot_err,
         names_st=names_st, color_list=colors, reverse_grp=True,
-        highlight_habitable=False, include_sol=True, sort_col="MHC",
-        leg_loc=1, errxcol="e_VK_color", errycol="e_MHC", **plot_kwargs)
+        highlight_habitable=False, include_sol=True, sort_col="ASHC",
+        leg_loc=1, errxcol="e_VK_color", errycol="e_ASHC", **plot_kwargs)
     
     ax2.set_xlabel(r"$V-K_s$ Color ($\Delta$mag)", fontsize=18)
-    ax2.set_ylabel("MHC", fontsize=18)
+    ax2.set_ylabel("ASHC", fontsize=18)
     ax2.tick_params(labelsize=16)
     fig.tight_layout()
     plt.savefig(save_path_2)
@@ -389,8 +412,8 @@ def plot_fig3(df: pd.DataFrame):
     # Load planet habitability and plotting data
     df_h = df[df["habitable"] == 1].reset_index()
 
-    named_stars = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["hostname"].drop_duplicates().to_list()
-    named_planets = df_h[(df_h[group] == 1) & (df_h["MHC"] > 1)]["pl_name"].to_list()
+    named_stars = df_h[(df_h[group] == 1) & (df_h["ASHC"] > 1)]["hostname"].drop_duplicates().to_list()
+    named_planets = df_h[(df_h[group] == 1) & (df_h["ASHC"] > 1)]["pl_name"].to_list()
     named_objs = named_stars if names_st else named_planets
 
     plot_kwargs = {"alpha": 1.0, "s": 15, "lw_e": 1.0, "alpha_e": 0.25,
@@ -422,26 +445,26 @@ def plot_fig3(df: pd.DataFrame):
     plt.close()
 
 
-def _normalized_range(data: np.array, data_range: pd.Series):
-    return (data - min(data_range)) / (max(data_range) - min(data_range))
+def _normalized_range(data: np.array, data_range: np.array, shift: float=0., scale: float=1.):
+    return shift + scale * (data - np.amin(data_range)) / (np.amax(data_range) - np.amin(data_range))
 
 
-def _named_text_posn(df: pd.DataFrame):
+def _named_text_posn_fig4(df: pd.DataFrame):
     
     df["xtext"] = 10
     df["ytext"] = 10
     
-    df.loc[df["plot_name"] == "1", "xtext"] = 15
-    df.loc[df["plot_name"] == "1", "ytext"] = 5
+    df.loc[df["plot_name"] == "1", "xtext"] = 7
+    df.loc[df["plot_name"] == "1", "ytext"] = -13
 
     df.loc[df["plot_name"] == "3", "xtext"] = 5
     df.loc[df["plot_name"] == "3", "ytext"] = 15
 
-    df.loc[df["plot_name"] == "4", "xtext"] = 5
-    df.loc[df["plot_name"] == "4", "ytext"] = 15
+    df.loc[df["plot_name"] == "4", "xtext"] = 7
+    df.loc[df["plot_name"] == "4", "ytext"] = -13
 
-    df.loc[df["plot_name"] == "5", "xtext"] = 13
-    df.loc[df["plot_name"] == "5", "ytext"] = 7
+    df.loc[df["plot_name"] == "5", "xtext"] = 9
+    df.loc[df["plot_name"] == "5", "ytext"] = -11
 
     df.loc[df["plot_name"] == "6", "xtext"] = 15
     df.loc[df["plot_name"] == "6", "ytext"] = 5
@@ -461,10 +484,91 @@ def _named_text_posn(df: pd.DataFrame):
     df.loc[df["plot_name"] == "Earth", "xtext"] = 15
     df.loc[df["plot_name"] == "Earth", "ytext"] = 5
 
-    
     return df
 
-def plot_fig4(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=True):
+
+def plot_fig1(df: pd.DataFrame, classcol: str="mass_class", use_stmass: bool=False):
+    
+    df = df.copy(deep=False)
+    colors = ["red", "green", "mediumorchid", "orange", "black"]
+    grp_counts = df.groupby(by=classcol).count()["ASHC"]
+    grp_names = ["subterran", "terran", "superterran", "giant", "no class"]
+
+    fig1, ax1 = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
+    fig2, ax2 = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
+    ax1: plt.Axes
+    ax2: plt.Axes
+    
+    df_nh = df[df["habitable"] == 0].reset_index(inplace=False)
+    df_u, df_inv = np.unique(df_nh["mass_class"], return_inverse=True, axis=0)
+
+    alpha_nh = 0.66
+    for idx in reversed(range(max(df_inv) + 1)):
+        grp = df_u[idx]
+        label = f"{grp_names[idx]} ({grp_counts.at[grp]})"
+        temp = df_nh[df_inv == idx]
+        
+        ax1.plot(np.array(temp["st_mass"]), np.array(temp["ASHC"]),
+                 c=colors[grp], linestyle="none", marker="+", fillstyle="none", alpha=alpha_nh, label=label)
+        ax2.plot(np.array(temp["VK_color"]), np.array(temp["ASHC"]),
+                 c=colors[grp], linestyle="none", marker="+", fillstyle="none", alpha=alpha_nh, label=label)
+
+    df_h = df[df["habitable"] == 1].reset_index(inplace=False)
+    df_u, df_inv = np.unique(df_h["mass_class"], return_inverse=True, axis=0)
+
+    for idx in reversed(range(max(df_inv) + 1)):
+        grp = df_u[idx]
+        temp = df_h[df_inv == idx]
+        ax1.plot(np.array(temp["st_mass"]), np.array(temp["ASHC"]),
+                 c=colors[grp], linestyle="none", marker="o", fillstyle="full", alpha=1.0)
+        ax2.plot(np.array(temp["VK_color"]), np.array(temp["ASHC"]),
+                 c=colors[grp], linestyle="none", marker="o", fillstyle="full", alpha=1.0)
+
+    x1lo = 0.0
+    x1hi = 2.6
+    x2lo = 0.5
+    x2hi = 8.0
+    ylo = 5e-2
+    yhi = 100
+
+    print(len(df[(df["ASHC"] >= ylo) &
+                 (df["ASHC"] <= yhi) &
+                 (df["st_mass"] >= x1lo) &
+                 (df["st_mass"] <= x1hi)]))
+    
+    print(len(df[(df["ASHC"] >= ylo) &
+                 (df["ASHC"] <= yhi) &
+                 (df["VK_color"] >= x2lo) &
+                 (df["VK_color"] <= x2hi)]))
+    
+    ax1.hlines(1.0, xmin=x1lo, xmax=x1hi, linestyles="dashed", linewidth=1.0,
+              colors="gray")
+    ax1.set_ylabel("ASHC", fontsize=18)
+    ax1.set_yscale("log")
+    ax1.set_ylim((ylo, yhi))
+    ax1.set_xlabel(r"Stellar Mass $M_*\;(M_\odot)$", fontsize=18)
+    ax1.set_xlim((x1lo, x1hi))
+    ax1.tick_params(labelsize=16)
+    ax1.legend(loc=1, fontsize=11)
+    fig1.tight_layout()
+    # plt.savefig("imgs/Fig1.png")
+
+    ax2.hlines(1.0, xmin=x2lo, xmax=x2hi, linestyles="dashed", linewidth=1.0,
+              colors="gray")
+    ax2.set_ylabel("ASHC", fontsize=18)
+    ax2.set_yscale("log")
+    ax2.set_ylim((ylo, yhi))
+    ax2.set_xlabel(r"$V-K$ Color ($\Delta$ mag)", fontsize=18)
+    ax2.set_xlim((x2lo, x2hi))
+    ax2.tick_params(labelsize=16)
+    ax2.legend(loc=1, fontsize=11)
+    fig2.tight_layout()
+    # plt.savefig("imgs/FigA1.png")
+
+    plt.show()
+
+
+def plot_fig2(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=True):
 
     # Load planet habitability and plotting data
     df = df[df["habitable"] == 1].reset_index()
@@ -472,20 +576,24 @@ def plot_fig4(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=True):
         df["plot_name"] = make_plot_names_pl(df, named_planets=NAMED_PLANETS, sort_col="pl_name")
     df = add_solar_system_planets(df, use_names=show_names)
     if show_names:
-        df = _named_text_posn(df)
+        df = _named_text_posn_fig4(df)
 
     # sort by pl_mass so smaller planets don't get covered
     df.sort_values(by="pl_bmasse", ascending=False, inplace=True)
+    where_solarsys = df["plot_name"].isin(["Venus", "Earth", "Mars"])
     
     fig, ax4 = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
     ax4: plt.Axes
-    # cmap = cm.get_cmap("plasma")
-    cmap = cm.get_cmap("YlOrRd_r" if use_stmass else "viridis_r")
+    cmap = cm.get_cmap("CMAP2" if use_stmass else "viridis_r")
+
+    dots = np.log(df["pl_bmasse"])
+    s_shift = 10
+    s_scale = 4*35
 
     x = df["rperi"]
     y = df["Prot"]
     z = df["st_mass"] if use_stmass else df["VK_color"]
-    s = 200*_normalized_range(np.array(df["pl_bmasse"]), df["pl_bmasse"]) + 10
+    s = _normalized_range(dots, dots, shift=s_shift, scale=s_scale)
     
     prot_lo = min(1e0, min(y))
     prot_hi = max(3e2, max(y))
@@ -499,7 +607,11 @@ def plot_fig4(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=True):
     ax4.set_ylim((prot_lo,prot_hi))
     ax4.tick_params(labelsize=16, size=5)
 
-    im = ax4.scatter(x, y, c=z, marker="o", s=s, cmap=cmap, zorder=2)
+    # special plot for solar sys planets
+    color_solarsys = cmap((np.array(z[where_solarsys])[0] - min(z)) / (max(z) - min(z)))
+    ax4.scatter(x[where_solarsys], y[where_solarsys], color=color_solarsys, marker="o", s=s[where_solarsys], zorder=2.5, edgecolor="black")
+
+    im = ax4.scatter(x[~where_solarsys], y[~where_solarsys], c=z[~where_solarsys], marker="o", s=s[~where_solarsys], cmap=cmap, zorder=2)
     cb = fig.colorbar(im, ax=ax4)
     cb.set_label("M$_*$ (M$_\odot$)" if use_stmass else "V-K ($\Delta$mag)", fontsize=18)
     cb.ax.tick_params(labelsize=16)
@@ -512,25 +624,22 @@ def plot_fig4(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=True):
         rovals = np.outer(1/taucM(mvals), protvals).T
         ravals = ra_schrijver(rovals)
         rpvals = np.repeat(protvals, repeats=len(mvals), axis=0).reshape((npoints,len(mvals)))
-        labels = [f"{i:.02f}M$_\odot$" for i in mvals]
-        legtitle = "$R_A$ Contours at\nConstant M$_*$"
+        labels = [f"$M_*=${i:.02f}M$_\odot$" for i in mvals]
+        legtitle = "Extent of Mean\n" + r"Alfv$\'e$n Surface"
         c = [cmap((mval - min(z)) / (max(z)-min(z))) for mval in mvals]
     else:
         vkvals = pd.Series([1.5, 3.0, 4.5, 6.0])
         rovals = np.outer(1/taucVK(vkvals), protvals).T
         ravals = ra_schrijver(rovals)
         rpvals = np.repeat(protvals, repeats=len(vkvals), axis=0).reshape((npoints,len(vkvals)))
-        labels = [f"{i:.02f}" for i in vkvals]
-        legtitle = "R$_A$ Contours at\nConstant V-K"
+        labels = [f"$V-K=${i:.02f}" for i in vkvals]
+        legtitle = "Extent of Mean\n" + r"Alfv$\'e$n Surface"
         c = [cmap((vkval - min(z)) / (max(z)-min(z))) for vkval in vkvals]
-    
-    
-    
     
     ax4.set_prop_cycle("color", c)
     plot_lines = ax4.plot(ravals, rpvals, label=labels, zorder=1)
-
     
+
     if show_names:
         where_named = df["plot_name"] != ""
         xtext = df.loc[where_named, "xtext"]
@@ -556,10 +665,11 @@ def plot_fig4(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=True):
 
 
     # how we break up the pl masses
-    plmvals = [0.107, 1.00, 17.2, 317.8]
+    plmvals = np.log([0.107, 1.00, 17.2, 317.8])
     plmlabels = ["Mars (0.107M$_\oplus)$", "Earth (1.00M$_\oplus$)", "Neptune (17.2M$_\oplus$)", "Jupiter (318M$_\oplus$)"]
     csol = cmap((1.0 - min(z)) / (max(z)-min(z)))
-    size_handles = [ax4.scatter([],[], color=csol, s=(200*_normalized_range(plmval, df["pl_bmasse"]) + 10), label=plmlabel) for plmlabel, plmval in zip(plmlabels, plmvals)]
+    size_handles = [ax4.scatter([],[], color=csol, edgecolor="black",
+            s=(_normalized_range(plmval, dots, shift=s_shift, scale=s_scale)), label=plmlabel) for plmlabel, plmval in zip(plmlabels, plmvals)]
 
     ax4.tick_params(labelsize=16, size=5)
     
@@ -567,12 +677,232 @@ def plot_fig4(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=True):
     
     legend_lines = ax4.legend(handles=plot_lines,
                               title=legtitle,
-                              loc=(0.715,0.695),
+                              loc=(0.695,0.695),
                               title_fontsize=13,
                               fontsize=11)
     ax4.add_artist(legend_lines)
-    ax4.legend(handles=size_handles, title="Planet Masses", loc=(0.62,0.01), title_fontsize=13, fontsize=11)
-    fig.savefig("imgs/new_stmass.png" if use_stmass else "imgs/new_vkcolor.png")
+    ax4.legend(handles=size_handles, title="Planet Mass", loc=(0.62,0.01), title_fontsize=13, fontsize=11)
+    fig.savefig("imgs/Fig2_stmass.png" if use_stmass else "imgs/Fig2_vkcolor.png")
+    plt.show()
+
+
+def plot_figA2_sm(df: pd.DataFrame, show_names: bool=True):
+
+    # Load planet habitability and plotting data
+    df = df[(df["habitable"] == 1) & np.isfinite(df["RoM"])].reset_index()
+    if show_names:
+        df["plot_name"] = make_plot_names_pl(df, named_planets=NAMED_PLANETS, sort_col="pl_name")
+    df = add_solar_system_planets(df, use_names=show_names)
+    if show_names:
+        df = _named_text_posn_fig4(df)
+
+    # sort by pl_mass so smaller planets don't get covered
+    df.sort_values(by="pl_bmasse", ascending=False, inplace=True)
+    where_solarsys = df["plot_name"].isin(["Venus", "Earth", "Mars"])
+    
+    fig, ax4 = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
+    ax4: plt.Axes
+    cmap = cm.get_cmap("CMAP2")
+
+    dots = np.log(df["pl_bmasse"])
+    s_shift = 10
+    s_scale = 4*35
+
+    x = df["rperi"]
+    y = df["Prot"]
+    z = df["st_mass"]
+    s = _normalized_range(dots, dots, shift=s_shift, scale=s_scale)
+    
+    prot_lo = min(1e0, min(y))
+    prot_hi = max(3e2, max(y))
+    a_lo = min(1e-2, min(x))
+
+    ax4.set_xlabel("a$_p$ (AU)", fontsize=18)
+    ax4.set_xscale("log")
+    ax4.set_xlim((a_lo, None))
+    ax4.set_ylabel(r"P$_{rot}$ (d)", fontsize=18)
+    ax4.set_yscale("log")
+    ax4.set_ylim((prot_lo,prot_hi))
+    ax4.tick_params(labelsize=16, size=5)
+
+    # special plot for solar sys planets
+    color_solarsys = cmap((np.array(z[where_solarsys])[0] - min(z)) / (max(z) - min(z)))
+    ax4.scatter(x[where_solarsys], y[where_solarsys], color=color_solarsys, marker="o", s=s[where_solarsys], zorder=2.5, edgecolor="black")
+
+    im = ax4.scatter(x[~where_solarsys], y[~where_solarsys], c=z[~where_solarsys], marker="o", s=s[~where_solarsys], cmap=cmap, zorder=2)
+    cb = fig.colorbar(im, ax=ax4)
+    cb.set_label("M$_*$ (M$_\odot$)", fontsize=18)
+    cb.ax.tick_params(labelsize=16)
+    
+
+    npoints = 100
+    protvals = np.linspace(prot_lo, prot_hi, num=npoints)
+    
+    mvals = pd.Series([0.25, 0.5, 0.75, 1.0, 1.25])
+    rovals = np.outer(1/taucM(mvals), protvals).T
+    ravals = ra_schrijver(rovals)
+    rpvals = np.repeat(protvals, repeats=len(mvals), axis=0).reshape((npoints,len(mvals)))
+    labels = [f"$M_*=${i:.02f}M$_\odot$" for i in mvals]
+    legtitle = "Extent of Mean\n" + r"Alfv$\'e$n Surface"
+    c = [cmap((mval - min(z)) / (max(z)-min(z))) for mval in mvals]
+    
+    ax4.set_prop_cycle("color", c)
+    plot_lines = ax4.plot(ravals, rpvals, label=labels, zorder=1)
+    
+
+    if show_names:
+        where_named = df["plot_name"] != ""
+        xtext = df.loc[where_named, "xtext"]
+        ytext = df.loc[where_named, "ytext"]
+        name = np.array(df.loc[where_named, "plot_name"])
+        xy = np.stack([x[where_named], y[where_named]], axis=-1)
+        xytext = np.stack([xtext, ytext], axis=-1)
+        ct = xy.shape[0]
+        kwargs_named = {"fontsize": 12, "zorder": 3}
+        for i in range(ct):
+            plt.annotate(text=name[i],
+                         xy=xy[i],
+                         xytext=xytext[i],
+                         xycoords="data",
+                         textcoords="offset points",
+                         arrowprops=dict(arrowstyle="-",
+                                         connectionstyle="arc3",
+                                         color="gray"),
+                         bbox=dict(pad=-2.5,
+                                  facecolor="none",
+                                  edgecolor="none"),
+                         **kwargs_named)
+
+
+    # how we break up the pl masses
+    plmvals = np.log([0.107, 1.00, 17.2, 317.8])
+    plmlabels = ["Mars (0.107M$_\oplus)$", "Earth (1.00M$_\oplus$)", "Neptune (17.2M$_\oplus$)", "Jupiter (318M$_\oplus$)"]
+    csol = cmap((1.0 - min(z)) / (max(z)-min(z)))
+    size_handles = [ax4.scatter([],[], color=csol, edgecolor="black",
+            s=(_normalized_range(plmval, dots, shift=s_shift, scale=s_scale)), label=plmlabel) for plmlabel, plmval in zip(plmlabels, plmvals)]
+
+    ax4.tick_params(labelsize=16, size=5)
+    
+    fig.tight_layout()
+    
+    legend_lines = ax4.legend(handles=plot_lines,
+                              title=legtitle,
+                              loc=(0.695,0.695),
+                              title_fontsize=13,
+                              fontsize=11)
+    ax4.add_artist(legend_lines)
+    ax4.legend(handles=size_handles, title="Planet Mass", loc=(0.62,0.01), title_fontsize=13, fontsize=11)
+    fig.savefig("imgs/FigA1.png")
+    plt.show()
+
+
+def plot_figA2_vk(df: pd.DataFrame, show_names: bool=True):
+
+    # Load planet habitability and plotting data
+    df = df[(df["habitable"] == 1) & np.isfinite(df["RoVK"])].reset_index()
+    if show_names:
+        df["plot_name"] = make_plot_names_pl(df, named_planets=NAMED_PLANETS, sort_col="pl_name")
+    df = add_solar_system_planets(df, use_names=show_names)
+    if show_names:
+        df = _named_text_posn_fig4(df)
+
+    # sort by pl_mass so smaller planets don't get covered
+    df.sort_values(by="pl_bmasse", ascending=False, inplace=True)
+    where_solarsys = df["plot_name"].isin(["Venus", "Earth", "Mars"])
+    
+    fig, ax4 = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
+    ax4: plt.Axes
+    cmap = cm.get_cmap("viridis_r")
+
+    dots = np.log(df["pl_bmasse"])
+    s_shift = 10
+    s_scale = 4*35
+
+    x = df["rperi"]
+    y = df["Prot"]
+    z = df["VK_color"]
+    s = _normalized_range(dots, dots, shift=s_shift, scale=s_scale)
+    
+    prot_lo = min(1e0, min(y))
+    prot_hi = max(3e2, max(y))
+    a_lo = min(1e-2, min(x))
+
+    ax4.set_xlabel("a$_p$ (AU)", fontsize=18)
+    ax4.set_xscale("log")
+    ax4.set_xlim((a_lo, None))
+    ax4.set_ylabel(r"P$_{rot}$ (d)", fontsize=18)
+    ax4.set_yscale("log")
+    ax4.set_ylim((prot_lo,prot_hi))
+    ax4.tick_params(labelsize=16, size=5)
+
+    # special plot for solar sys planets
+    color_solarsys = cmap((np.array(z[where_solarsys])[0] - min(z)) / (max(z) - min(z)))
+    ax4.scatter(x[where_solarsys], y[where_solarsys], color=color_solarsys, marker="o", s=s[where_solarsys], zorder=2.5, edgecolor="black")
+
+    im = ax4.scatter(x[~where_solarsys], y[~where_solarsys], c=z[~where_solarsys], marker="o", s=s[~where_solarsys], cmap=cmap, zorder=2)
+    cb = fig.colorbar(im, ax=ax4)
+    cb.set_label("V-K ($\Delta$mag)", fontsize=18)
+    cb.ax.tick_params(labelsize=16)
+    
+
+    npoints = 100
+    protvals = np.linspace(prot_lo, prot_hi, num=npoints)
+    
+    vkvals = pd.Series([1.5, 3.0, 4.5, 6.0])
+    rovals = np.outer(1/taucVK(vkvals), protvals).T
+    ravals = ra_schrijver(rovals)
+    rpvals = np.repeat(protvals, repeats=len(vkvals), axis=0).reshape((npoints,len(vkvals)))
+    labels = [f"$V-K=${i:.02f}" for i in vkvals]
+    legtitle = "Extent of Mean\n" + r"Alfv$\'e$n Surface"
+    c = [cmap((vkval - min(z)) / (max(z)-min(z))) for vkval in vkvals]
+    
+    ax4.set_prop_cycle("color", c)
+    plot_lines = ax4.plot(ravals, rpvals, label=labels, zorder=1)
+    
+
+    if show_names:
+        where_named = df["plot_name"] != ""
+        xtext = df.loc[where_named, "xtext"]
+        ytext = df.loc[where_named, "ytext"]
+        name = np.array(df.loc[where_named, "plot_name"])
+        xy = np.stack([x[where_named], y[where_named]], axis=-1)
+        xytext = np.stack([xtext, ytext], axis=-1)
+        ct = xy.shape[0]
+        kwargs_named = {"fontsize": 12, "zorder": 3}
+        for i in range(ct):
+            plt.annotate(text=name[i],
+                         xy=xy[i],
+                         xytext=xytext[i],
+                         xycoords="data",
+                         textcoords="offset points",
+                         arrowprops=dict(arrowstyle="-",
+                                         connectionstyle="arc3",
+                                         color="gray"),
+                         bbox=dict(pad=-2.5,
+                                  facecolor="none",
+                                  edgecolor="none"),
+                         **kwargs_named)
+
+
+    # how we break up the pl masses
+    plmvals = np.log([0.107, 1.00, 17.2, 317.8])
+    plmlabels = ["Mars (0.107M$_\oplus)$", "Earth (1.00M$_\oplus$)", "Neptune (17.2M$_\oplus$)", "Jupiter (318M$_\oplus$)"]
+    csol = cmap((1.0 - min(z)) / (max(z)-min(z)))
+    size_handles = [ax4.scatter([],[], color=csol, edgecolor="black",
+            s=(_normalized_range(plmval, dots, shift=s_shift, scale=s_scale)), label=plmlabel) for plmlabel, plmval in zip(plmlabels, plmvals)]
+
+    ax4.tick_params(labelsize=16, size=5)
+    
+    fig.tight_layout()
+    
+    legend_lines = ax4.legend(handles=plot_lines,
+                              title=legtitle,
+                              loc=(0.695,0.695),
+                              title_fontsize=13,
+                              fontsize=11)
+    ax4.add_artist(legend_lines)
+    ax4.legend(handles=size_handles, title="Planet Mass", loc=(0.62,0.01), title_fontsize=13, fontsize=11)
+    fig.savefig("imgs/FigA2.png")
     plt.show()
 
 
@@ -583,7 +913,8 @@ if __name__ == "__main__":
     df_h = df[df["habitable"] == 1].reset_index()
 
     # master plots
-    # plot_fig1(df)
-    # plot_fig2(df)
-    # plot_fig3(df)
-    plot_fig4(df, use_stmass=False)
+    plot_fig1(df, classcol="mass_class")
+    # plot_fig2(df, use_stmass=True)
+    # plot_fig2(df, use_stmass=False)
+    # plot_figA2_st(df)
+    # plot_figA2_vk(df)

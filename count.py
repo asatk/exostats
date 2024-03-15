@@ -1,9 +1,14 @@
 import numpy as np
 import pandas as pd
+import warnings
+
 from alfven_estimates import estimate_alfven, estimate_rossby, mass_class, measured_uncertainties, rad_class
 
 if __name__ == "__main__":
 
+    warnings.filterwarnings("ignore")
+
+    # full_sample_path = "backup-2024.03.12/2024.03.12_exo-data/nasa_exo.csv"
     full_sample_path = "current-exo-data/nasa_exo.csv"
     full_sample = pd.read_csv(full_sample_path)
 
@@ -83,6 +88,7 @@ if __name__ == "__main__":
     # ROTATION PERIOD CUT
 
     hosts_path = "current-exo-data/hosts_prot.csv"
+    # hosts_path = "backup-2024.03.12/2024.03.12_exo-data/hosts_prot.csv"
     hosts = pd.read_csv(hosts_path)
     prot_sample = pd.merge(full_sample, hosts, on="hostname")
     prot_sample_st = pd.merge(full_sample_st, hosts, on="hostname")
@@ -149,55 +155,55 @@ if __name__ == "__main__":
           ro_sample_st[ro_sample_st["Ro"].notnull()]["Ro"].count()))
 
     as_sample = estimate_alfven(ro_sample)
-    MHC_sample = as_sample[as_sample["MHC"].notnull()]
-    print("EXOS (R) - [{}] MHC".format(MHC_sample["MHC"].count()))
-    print("HOSTS (R) - [{}] MHC".format(MHC_sample.drop_duplicates(subset="hostname")["hostname"].count()))
+    ASHC_sample = as_sample[as_sample["ASHC"].notnull()]
+    print("EXOS (R) - [{}] ASHC".format(ASHC_sample["ASHC"].count()))
+    print("HOSTS (R) - [{}] ASHC".format(ASHC_sample.drop_duplicates(subset="hostname")["hostname"].count()))
 
     print("EXOS (R) - GROUPED BY 'db'")
     print(as_sample.groupby(by="db")["Prot"].count())
 
     where_CHZ = as_sample["habitable"] == 1
-    where_MHC = as_sample["MHC"] > 1
+    where_ASHC = as_sample["ASHC"] > 1
 
     CHZ_sample = as_sample[where_CHZ]
-    MHC1_sample = as_sample[where_MHC]
-    CHZ_MHC1_sample = as_sample[where_CHZ & where_MHC]
+    ASHC1_sample = as_sample[where_ASHC]
+    CHZ_ASHC1_sample = as_sample[where_CHZ & where_ASHC]
 
     print("[CHZ]\n",
-          CHZ_sample[["pl_name", "MHC", "e_MHC"]].count())
-    print("[MHC>1]\n",
-          MHC1_sample[["pl_name", "MHC", "e_MHC"]].count())
-    print("[CHZ, MHC>1]\n",
-          CHZ_MHC1_sample[["pl_name", "MHC", "e_MHC"]].count())
+          CHZ_sample[["pl_name", "ASHC", "e_ASHC"]].count())
+    print("[ASHC>1]\n",
+          ASHC1_sample[["pl_name", "ASHC", "e_ASHC"]].count())
+    print("[CHZ, ASHC>1]\n",
+          CHZ_ASHC1_sample[["pl_name", "ASHC", "e_ASHC"]].count())
 
     print("[CHZ]\n",
-        CHZ_sample.groupby(by="mass_class")[["MHC", "e_MHC"]].count())
-    print("\n\n[MHC>1]\n",
-        MHC1_sample.groupby(by="mass_class")[["MHC", "e_MHC"]].count())
-    print("\n\n[CHZ, MHC>1]\n",
-        CHZ_MHC1_sample.groupby(by="mass_class")[["MHC", "e_MHC"]].count())
+        CHZ_sample.groupby(by="mass_class")[["ASHC", "e_ASHC"]].count())
+    print("\n\n[ASHC>1]\n",
+        ASHC1_sample.groupby(by="mass_class")[["ASHC", "e_ASHC"]].count())
+    print("\n\n[CHZ, ASHC>1]\n",
+        CHZ_ASHC1_sample.groupby(by="mass_class")[["ASHC", "e_ASHC"]].count())
 
     print("[CHZ]\n",
-        CHZ_sample.groupby(by="rad_class")[["MHC", "e_MHC"]].count())
-    print("\n\n[MHC>1]\n",
-        MHC1_sample.groupby(by="rad_class")[["MHC", "e_MHC"]].count())
-    print("\n\n[CHZ, MHC>1]\n",
-        CHZ_MHC1_sample.groupby(by="rad_class")[["MHC", "e_MHC"]].count())
+        CHZ_sample.groupby(by="rad_class")[["ASHC", "e_ASHC"]].count())
+    print("\n\n[ASHC>1]\n",
+        ASHC1_sample.groupby(by="rad_class")[["ASHC", "e_ASHC"]].count())
+    print("\n\n[CHZ, ASHC>1]\n",
+        CHZ_ASHC1_sample.groupby(by="rad_class")[["ASHC", "e_ASHC"]].count())
     
-    CHZ_MHC_mass1 = CHZ_MHC1_sample.loc[CHZ_MHC1_sample["mass_class"] == 1, "pl_name"]
-    CHZ_MHC_mass2 = CHZ_MHC1_sample.loc[CHZ_MHC1_sample["mass_class"] == 2, "pl_name"]
-    CHZ_MHC_rad1 = CHZ_MHC1_sample.loc[CHZ_MHC1_sample["rad_class"] == 1, "pl_name"]
-    CHZ_MHC_rad2 = CHZ_MHC1_sample.loc[CHZ_MHC1_sample["rad_class"] == 2, "pl_name"]
+    CHZ_ASHC_mass1 = CHZ_ASHC1_sample.loc[CHZ_ASHC1_sample["mass_class"] == 1, "pl_name"]
+    CHZ_ASHC_mass2 = CHZ_ASHC1_sample.loc[CHZ_ASHC1_sample["mass_class"] == 2, "pl_name"]
+    CHZ_ASHC_rad1 = CHZ_ASHC1_sample.loc[CHZ_ASHC1_sample["rad_class"] == 1, "pl_name"]
+    CHZ_ASHC_rad2 = CHZ_ASHC1_sample.loc[CHZ_ASHC1_sample["rad_class"] == 2, "pl_name"]
 
-    # print(CHZ_MHC_mass1)
-    # print(CHZ_MHC_rad1)
-    # print(CHZ_MHC_mass2)
-    # print(CHZ_MHC_rad2)
+    # print(CHZ_ASHC_mass1)
+    # print(CHZ_ASHC_rad1)
+    # print(CHZ_ASHC_mass2)
+    # print(CHZ_ASHC_rad2)
 
-    d1L = np.setdiff1d(CHZ_MHC_mass1, CHZ_MHC_rad1)
-    d1R = np.setdiff1d(CHZ_MHC_rad1, CHZ_MHC_mass1)
-    d2L = np.setdiff1d(CHZ_MHC_mass2, CHZ_MHC_rad2)
-    d2R = np.setdiff1d(CHZ_MHC_rad2, CHZ_MHC_mass2)
+    d1L = np.setdiff1d(CHZ_ASHC_mass1, CHZ_ASHC_rad1)
+    d1R = np.setdiff1d(CHZ_ASHC_rad1, CHZ_ASHC_mass1)
+    d2L = np.setdiff1d(CHZ_ASHC_mass2, CHZ_ASHC_rad2)
+    d2R = np.setdiff1d(CHZ_ASHC_rad2, CHZ_ASHC_mass2)
 
     print(d1L, d1R)
     print(d2L, d2R)
@@ -212,7 +218,7 @@ if __name__ == "__main__":
     ages_std = np.std(ages)
     print(f"[EXOS] - [{ages_count}] AGES\n - min {ages_min}\n - max {ages_max}\n - {ages_mean}\n - {ages_mean}\n - median {ages_med}\n - std {ages_std}")
     
-    MHC_young = ages[ages < 0.1].count()
-    MHC_ms = ages[(ages >= 0.1) & (ages <= 4.5)].count()
-    MHC_old = ages[ages > 4.5].count()
-    print(f"[EXOS] young (<100Myr) {MHC_young}\n[EXOS] main seq {MHC_ms}\n[EXOS] old (>4.5Gyr) {MHC_old}")
+    ASHC_young = ages[ages < 0.1].count()
+    ASHC_ms = ages[(ages >= 0.1) & (ages <= 4.5)].count()
+    ASHC_old = ages[ages > 4.5].count()
+    print(f"[EXOS] young (<100Myr) {ASHC_young}\n[EXOS] main seq {ASHC_ms}\n[EXOS] old (>4.5Gyr) {ASHC_old}")

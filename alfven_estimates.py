@@ -83,7 +83,7 @@ def dRoM(Prot, M, dProt, dM):
 
 
 def RoAvg(RoVK, RoM):
-    return np.nanmean([RoVK, RoM])
+    return np.nanmean([RoVK, RoM], axis=0)
     
 
 def dRoAvg(dRoVK, dRoM):
@@ -269,8 +269,8 @@ def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     lx = lx_farrish(data["Ro"])
     dlx = dlx_farrish(data["Ro"], data["e_Ro"])
 
-    mhc = data["rperi"] / ra
-    dmhc = data["rperi"] / ra * np.sqrt(
+    ashc = data["rperi"] / ra
+    dashc = data["rperi"] / ra * np.sqrt(
         np.power(data["e_rperi"] / data["rperi"], 2.) + \
         np.power(dra, 2.))
 
@@ -281,10 +281,10 @@ def estimate_alfven(data: pd.DataFrame) -> pd.DataFrame:
     alfven_data["e_RASun"] = dra * au / r_sol
     alfven_data["LX"] = lx
     alfven_data["e_LX"] = dlx
-    alfven_data["MHC"] = mhc
-    alfven_data["e_MHC"] = dmhc
+    alfven_data["ASHC"] = ashc
+    alfven_data["e_ASHC"] = dashc
     
-    alfven_data = alfven_data[(alfven_data["Ro"] > 0.0) & (alfven_data["MHC"] > 0.0)]
+    alfven_data = alfven_data[(alfven_data["Ro"] > 0.0) & (alfven_data["ASHC"] > 0.0)]
 
     return alfven_data
 
@@ -339,9 +339,9 @@ def rad_class(pl_rad):
         return -1
 
 
-def size_class_subscripts(m, r, h, MHC) -> pd.Series:
+def size_class_subscripts(m, r, h, ASHC) -> pd.Series:
     s = ""
-    if h == 1 and MHC > 1:
+    if h == 1 and ASHC > 1:
         if m == 1:
             s += "a"
             if r == 1:
@@ -365,7 +365,7 @@ def planet_classes(alfven_data: pd.DataFrame) -> pd.DataFrame:
     alfven_data["habitable"] = alfven_data.apply(lambda r: 1 if r["pl_name"] in habitable_pl_names else 0, axis=1)
     alfven_data["size_class"] = alfven_data.apply(lambda r: r["mass_class"] if r["mass_class"] != -1 else r["rad_class"], axis=1)
     alfven_data["n_size_class"] = alfven_data.apply(
-        lambda r: size_class_subscripts(r["mass_class"], r["rad_class"], r["habitable"], r["MHC"]), axis=1)
+        lambda r: size_class_subscripts(r["mass_class"], r["rad_class"], r["habitable"], r["ASHC"]), axis=1)
 
     return alfven_data
 
@@ -422,12 +422,12 @@ if __name__ == "__main__":
     alfven_data = calculate_exos()
 
     chz_data = alfven_data[alfven_data["habitable"] == 1]
-    chz_mhc_data = alfven_data[(alfven_data["MHC"] > 1.0) & (alfven_data["habitable"] == 1)]
+    chz_ashc_data = alfven_data[(alfven_data["ASHC"] > 1.0) & (alfven_data["habitable"] == 1)]
 
     cols_print_long = ["pl_name", "mass_class", "rad_class", "st_mass",
                        "st_rad", "RoVK", "e_RoVK", "RoM", "e_RoM", "Ro", "e_Ro",
-                       "MHC", "e_MHC"]
-    cols_print_brief = ["pl_name", "Ro", "e_Ro", "MHC", "e_MHC"]
+                       "ASHC", "e_ASHC"]
+    cols_print_brief = ["pl_name", "Ro", "e_Ro", "ASHC", "e_ASHC"]
 
     if print_brief:
         cols_print = cols_print_brief
@@ -436,11 +436,11 @@ if __name__ == "__main__":
     
     print("[alfven_data]\n{}\n".format(alfven_data[cols_print].count()))
     print("[chz]\n{}\n".format(chz_data[cols_print].count()))
-    print("[chz & mhc]\n{}\n".format(chz_mhc_data[cols_print].count()))
+    print("[chz & ashc]\n{}\n".format(chz_ashc_data[cols_print].count()))
 
-    CHZ_names = chz_data[["pl_name", "Ro", "MHC"]]
+    CHZ_names = chz_data[["pl_name", "Ro", "ASHC"]]
     CHZ_names.to_csv("current-exo-data/CHZ_names.csv", index=False)
 
-    CHZ_MHC_names = chz_mhc_data[["pl_name", "Ro", "MHC"]]
-    CHZ_MHC_names.to_csv("current-exo-data/CHZ_MHC_names.csv", index=False)
+    CHZ_ASHC_names = chz_ashc_data[["pl_name", "Ro", "ASHC"]]
+    CHZ_ASHC_names.to_csv("current-exo-data/CHZ_ASHC_names.csv", index=False)
     

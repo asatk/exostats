@@ -82,14 +82,6 @@ def dRoM(Prot, M, dProt, dM):
                                   np.power(dtaucM(M, dM) / taucM(M), 2.))
 
 
-def RoAvg(RoVK, RoM):
-    return np.nanmean([RoVK, RoM], axis=0)
-    
-
-def dRoAvg(dRoVK, dRoM):
-    return np.sqrt(np.nansum([np.power(dRoVK, 2.),np.power(dRoM, 2.)]))
-
-
 def choose_Tauc(TaucVK: pd.Series, TaucM: pd.Series) -> pd.Series:
     
     where_rovk_notnull = TaucVK.notnull()
@@ -138,9 +130,9 @@ def choose_eRo(RoVK: pd.Series, RoM: pd.Series, dRoVK: pd.Series,
     return pd.Series(dRo, name="e_Ro", index=RoVK.index)
 
 
-r_sol = 6.957e8
-au = 1.496e11
-prot_sol = 27.
+r_sol = 6.957e8     # meters per solar radius
+au = 1.496e11       # meters per au
+prot_sol = 25.
 ro_sol = 1.85
 dro_sol = 0.26
 ra_sol = 20 * r_sol / au
@@ -233,10 +225,6 @@ def estimate_rossby(prot_data: pd.DataFrame) -> pd.DataFrame:
         taucM(x["st_mass"])
     prot_data["e_TaucM"] = \
         dtaucM(x["st_mass"], x["e_st_mass"])
-    prot_data["RoAvg"] = \
-        RoAvg(x["RoVK"], x["RoM"])
-    prot_data["e_RoAvg"] = \
-        dRoAvg(x["e_RoVK"], x["e_RoM"])
 
     # selects TaucVK over TaucM if both present
     prot_data["Tauc"] = choose_Tauc(x["TaucVK"], x["TaucM"])
@@ -354,15 +342,21 @@ def size_class_subscripts(m, r, h, ASHC) -> pd.Series:
 
 def planet_classes(alfven_data: pd.DataFrame) -> pd.DataFrame:
 
+    alfven_data.reset_index(inplace=True)
+
     exos_habitable = pd.read_csv("current-exo-data/exos_habitable.csv")
     exos_hill23 = pd.read_csv("current-exo-data/exos_hill23.csv")
 
-    # habitable_pl_names = set(exos_habitable.pl_name)
     habitable_pl_names = set(exos_habitable["pl_name"]).union(set(exos_hill23["pl_name"]))
+
+    CHZOHZests = pd.merge(alfven_data, exos_hill23, how="left", on="pl_name")
+    CHZOHZests.fillna(0, inplace=True)
 
     alfven_data["mass_class"] = mass_class(alfven_data["pl_bmasse"])
     alfven_data["rad_class"] = rad_class(alfven_data["pl_rade"])
     alfven_data["habitable"] = alfven_data.apply(lambda r: 1 if r["pl_name"] in habitable_pl_names else 0, axis=1)
+    alfven_data["CHZ"] = CHZOHZests["CHZ"].astype(np.int8)
+    alfven_data["OHZ"] = CHZOHZests["OHZ"].astype(np.int8)
     alfven_data["size_class"] = alfven_data.apply(lambda r: r["mass_class"] if r["mass_class"] != -1 else r["rad_class"], axis=1)
     alfven_data["n_size_class"] = alfven_data.apply(
         lambda r: size_class_subscripts(r["mass_class"], r["rad_class"], r["habitable"], r["ASHC"]), axis=1)
@@ -393,11 +387,10 @@ def calculate_exos() -> pd.DataFrame:
     data_col_list = ["pl_name", "hostname", "pl_letter", "pl_orbsmax",
         "e_pl_orbsmax", "pl_orbeccen", "e_pl_orbeccen", "pl_rade", "e_pl_rade",
         "pl_bmasse", "e_pl_bmasse", "st_rad", "e_st_rad", "RoVK", "RoM",
-        "RoAvg", "Ro", "e_RoVK", "e_RoM", "e_Ro", "KOI", "KIC", "TIC", "GAIA",
-        "db", "sy_dist", "e_sy_dist", "st_mass", "e_st_mass", "sy_vmag",
-        "e_sy_vmag", "sy_kmag", "e_sy_kmag", "Prot","e_Prot", "VK_color",
-        "e_VK_color", "st_teff", "st_age", "e_st_age", "Tauc", "e_Tauc",
-        "db"]
+        "Ro", "e_RoVK", "e_RoM", "e_Ro", "KOI", "KIC", "TIC", "GAIA", "db",
+        "sy_dist", "e_sy_dist", "st_mass", "e_st_mass", "sy_vmag", "e_sy_vmag",
+        "sy_kmag", "e_sy_kmag", "Prot","e_Prot", "VK_color", "e_VK_color",
+        "st_teff", "st_age", "e_st_age", "Tauc", "e_Tauc", "db"]
     
     # Planets must have a calculable r_p - both a and e.
     where_data = prot_data["Ro"].notnull() & prot_data["pl_orbsmax"].notnull()

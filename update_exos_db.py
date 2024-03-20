@@ -206,9 +206,9 @@ def update_exos_hill23(nasa_exo: pd.DataFrame):
     # check Hill - if it just uses NEA then it shouldn't mater
     # i guess we should also compare via computer too
     hill23 = pd.read_csv("tables/CHZ_hill23.csv")
-    hill23 = hill23[["Planet"]]
+    hill23 = hill23[["Planet", "CHZ", "OHZ"]]
     hill23.rename(columns={"Planet": "pl_name"}, inplace=True)
-    exos_hill23 = pd.merge(nasa_exo, hill23, how="inner", on="pl_name")[["hostname", "pl_name"]]
+    exos_hill23 = pd.merge(nasa_exo, hill23, how="inner", on="pl_name")[["hostname", "pl_name", "CHZ", "OHZ"]]
     exos_hill23.to_csv("current-exo-data/exos_hill23.csv", index=False)
 
 

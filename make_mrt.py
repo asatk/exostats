@@ -19,6 +19,7 @@ table_cols = [
     "pl_orbsmax", "e_pl_orbsmax",
     "pl_orbeccen", "e_pl_orbeccen",
     "ASHC", "e_ASHC",
+    "CHZ", "OHZ",
     "pl_bmasse", "e_pl_bmasse",
     "pl_rade", "e_pl_rade",
     "st_age", "e_st_age",
@@ -40,6 +41,8 @@ descriptions = {
         "e_RASun": "Uncertainty in Alfven Radius (Rsun)",
         "ASHC": "A.S. Habitability Criterion",
         "e_ASHC": "Derived Unc. in ASHC",
+        "CHZ": "Optimistic HZ (Hill+ 2023)",
+        "OHZ": "Optimistic HZ (Hill+ 2023)",
         "mass_class": "Planet Mass Class",
         "rad_class": "Planet Radius Class",
         "size_class": "Planet Size Class",
@@ -75,6 +78,7 @@ u_Mgeo = u.Unit("Mgeo", format="cds")
 u_Rgeo = u.Unit("Rgeo", format="cds")
 u_Gyr = u.Unit("Gyr")
 u_dimless = u.Unit()
+u_pct = u.Unit("%")
 
 u_Mgeo._names.reverse()
 u_Mgeo._short_names = ["Mgeo"]
@@ -97,6 +101,8 @@ units = {
     "e_RASun": u_Rsun,
     "pl_orbsmax": u_au,
     "e_pl_orbsmax": u_au,
+    "CHZ": u_pct,
+    "OHZ": u_pct,
     "pl_bmasse": u_Mgeo,
     "e_pl_bmasse": u_Mgeo,
     "pl_rade": u_Rgeo,
@@ -130,6 +136,8 @@ latexnames = {
     "pl_orbeccen": "e",
     "e_pl_orbeccen": r"$\delta$ e",
     "ASHC": "ASHC",
+    "CHZ": "CHZ",
+    "OHZ": "OHZ",
     "e_ASHC": r"$\delta$ ASHC",
     "pl_bmasse": r"$M_{pl}$",
     "e_pl_bmasse": r"$\delta M_{pl}$",
@@ -151,6 +159,7 @@ latexcols = [
     "pl_orbsmax",
     "pl_orbeccen",
     "ASHC",
+    "OHZ",
     "pl_bmasse",
     "pl_rade",
     "st_age",
@@ -192,7 +201,8 @@ def make_mrt(table_mrt: Table):
     ascii.write(table_mrt, tempfname, overwrite=True, format="mrt")
 
     # Meta-table header
-    meta = "Title: Exploring the Alfvén Surface Habitability of Exoplanets\n" + \
+    meta = "Title: Exploring the effects of stellar magnetism on the potential habitability\n" + \
+        " " * len("Title: ") + "of exoplanets\n" + \
         "Authors: Anthony Atkinson, David Alexander, and Alison Farrish\n" + \
         "Table: Properties of Planets in our Alfvén Surface Habitability Criterion Sample\n" + \
         "================================================================================\n" + \
@@ -219,6 +229,7 @@ def make_tex():
 
     mrtfname = "tab1.txt"
     tab = ascii.read(mrtfname, format="mrt").to_pandas()
+    tab["OHZ"] = tab.apply(lambda r: r"\nodata" if r["CHZ"] == 0 and r["OHZ"] == 0 else r["OHZ"], axis=1)
     tab1: pd.DataFrame = tab.loc[:30, latexcols]
     tab1.rename(columns=latexnames, inplace=True)
 
@@ -230,12 +241,14 @@ def make_tex():
     comment = r"\tablecomments{Table 1 is published in its entirety in the machine-readable format. " + \
                 "A portion is shown here for guidance regarding its form and content." + \
                 "The complete version includes uncertainties on measured and derived quantities, " + \
-                "Alfv\'en Radius in AU, host star names, and references for rotation period measurements.}"
+                r"Alfv\'en Radius in AU, host star names, and references for rotation period measurements.}"
     preamble = "\n".join([r"\rotate",
                           r"\tablenum{1}",
-                          r"\tablecolumns{14}",
+                          rf"\tablecolumns{{{len(latexcols)}}}",
                           r"\tabletypesize{\footnotesize}",
                           r"\tablewidth{0pt}"])
+
+    units["OHZ"] = r"\%"
 
     latexdict = {
         "caption": caption,
@@ -249,7 +262,6 @@ def make_tex():
     texfname = "tab1.tex"
     ascii.write(table=tab1, output=texfname, Writer=ascii.AASTex, latexdict=latexdict, overwrite=True)
 
-
     cmd = r'sed -E -i -e "s/\&\s*$/\& \\\\\\\\/" -e "s/\&\s+(\&|\\\\\\\\)/\& \\\\nodata \1/g" tab1.tex'
     os.system(cmd)
 
@@ -261,6 +273,7 @@ def make_tex2(df: pd.DataFrame):
                 "st_mass", "e_st_mass",
                 "Ro", "e_Ro",
                 "ASHC", "e_ASHC",
+                "CHZ", "OHZ",
                 "mass_class", "rad_class"]
     
     df_h = df.loc[(df["habitable"] == 1) & (df["ASHC"] > 1), tab2cols]
@@ -269,7 +282,8 @@ def make_tex2(df: pd.DataFrame):
 
     tab2units = {
         r"$V - K_s$": r"$\Delta mag$",
-        r"$M_*$": "Msun"
+        r"$M_*$": "Msun",
+        r"OHZ": "\%"
     }
 
     tab2names = {
@@ -277,7 +291,8 @@ def make_tex2(df: pd.DataFrame):
         "vk_str": r"$V - K_s$",
         "stm_str": r"$M_*$",
         "ro_str": "Stellar Rossby Number",
-        "ashc_str": "ASHC"
+        "ashc_str": "ASHC",
+        "ohz_str": "OHZ"
     }
 
     tab2tnames = {
@@ -287,7 +302,7 @@ def make_tex2(df: pd.DataFrame):
 
     tab2tlatexdict = {
         "caption": r"Properties of Terran CHZ Planets with ASHC $> 1$",
-        "col_align": "lccccc",
+        "col_align": "lcccccc",
         "preamble": r"\tablenum{2}",
         "tablefoot": r"\tablecomments{" + \
              f"These {len(terrans)} Terran planets (Earth-sized) are classified as such based on mass measurements fitting within " + \
@@ -297,7 +312,7 @@ def make_tex2(df: pd.DataFrame):
 
     tab2stlatexdict = {
         "caption": r"Properties of Superterran CHZ Planets with ASHC $> 1$",
-        "col_align": "lcccc",
+        "col_align": "lccccc",
         "preamble": r"\tablenum{3}",
         "tablefoot": r"\tablecomments{" + \
              f"These {len(superterrans)} Superterran planets (Super-Earth-sized) are classified as such based on mass measurements fitting within " + \
@@ -314,6 +329,7 @@ def make_tex2(df: pd.DataFrame):
         s += "$"
         return s
 
+    print(terrans[["pl_name", "CHZ", "OHZ"]])
 
     # terran
     terrans["vk_str"] = terrans.apply(lambda r: fill(r, "VK_color"), axis=1)
@@ -321,7 +337,8 @@ def make_tex2(df: pd.DataFrame):
     terrans["ro_str"] = terrans.apply(lambda r: fill(r, "Ro"), axis=1)
     terrans["ashc_str"] = terrans.apply(lambda r: fill(r, "ASHC"), axis=1)
     terrans["NoFig2"] = terrans.groupby("ASHC", sort=False).ngroup() + 1
-    tab2tcols = ["pl_name", "vk_str", "stm_str", "ro_str", "ashc_str", "NoFig2"]
+    terrans["ohz_str"] = terrans.apply(lambda r: r"\nodata" if r["CHZ"] == 0 and r["OHZ"] == 0 else r["OHZ"], axis=1)
+    tab2tcols = ["pl_name", "vk_str", "stm_str", "ro_str", "ashc_str", "ohz_str", "NoFig2"]
     terrans_tex = terrans[tab2tcols]
     terrans_tex.rename(columns=tab2tnames, inplace=True)
 
@@ -330,10 +347,10 @@ def make_tex2(df: pd.DataFrame):
     superterrans["stm_str"] = superterrans.apply(lambda r: fill(r, "st_mass"), axis=1)
     superterrans["ro_str"] = superterrans.apply(lambda r: fill(r, "Ro"), axis=1)
     superterrans["ashc_str"] = superterrans.apply(lambda r: fill(r, "ASHC"), axis=1)
-    tab2stcols = ["pl_name", "vk_str", "stm_str", "ro_str", "ashc_str"]
+    superterrans["ohz_str"] = superterrans.apply(lambda r: r"\nodata" if r["CHZ"] == 0 and r["OHZ"] == 0 else r["OHZ"], axis=1)
+    tab2stcols = ["pl_name", "vk_str", "stm_str", "ro_str", "ashc_str", "ohz_str"]
     superterrans_tex = superterrans[tab2stcols]
     superterrans_tex.rename(columns=tab2names, inplace=True)
-
 
     table_t = Table.from_pandas(terrans_tex, units=tab2units)
     table_st = Table.from_pandas(superterrans_tex, units=tab2units)
@@ -361,6 +378,7 @@ if __name__ == "__main__":
 
     fname = "current-exo-data/alfven_data.csv"
     table = ascii.read(fname, format="csv").to_pandas()
+
     round_columns(table)
     table.sort_values(by="pl_name", inplace=True)
     table_mrt = Table.from_pandas(table.loc[:,table_cols], units=units)

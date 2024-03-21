@@ -1,12 +1,9 @@
-import matplotlib as mpl
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.legend_handler import HandlerPathCollection
 import numpy as np
 import pandas as pd
 
-from alfven_estimates import ra_schrijver, taucM, taucVK, r_sol, au
-import alfven_estimates as alfe
+from alfven_estimates import ra_schrijver, dra_schrijver, RoM, dRoM, RoVK, dRoVK, taucM, taucVK
 from matplotlib import cm
 
 CMAP1 = LinearSegmentedColormap("CMAP1", dict(
@@ -630,28 +627,51 @@ def plot_fig2_unc(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=Fals
     cb.set_label("M$_*$ (M$_\odot$)" if use_stmass else "V-K ($\Delta$mag)", fontsize=18)
     cb.ax.tick_params(labelsize=16)
     
-
-    npoints = 100
+    uncProt = 0.2
+    npoints = 200
     protvals = np.linspace(prot_lo, prot_hi, num=npoints)
     if use_stmass:
-        mvals = pd.Series([0.25, 0.5, 0.75, 1.0, 1.25])
-        rovals = np.outer(1/taucM(mvals), protvals).T
-        ravals = ra_schrijver(rovals)
-        rpvals = np.repeat(protvals, repeats=len(mvals), axis=0).reshape((npoints,len(mvals)))
+        uncM = 0.05
+        # mvals = np.array([0.25, 0.5, 0.75, 1.0, 1.25])
+        mvals = np.array([0.08 + 1e-5, 1.36 - 1e-5])
+        nlines = len(mvals)
+        prot_grid = pd.Series(np.repeat(protvals, repeats=nlines))
+        mass_grid = pd.Series(np.repeat([mvals], repeats=npoints, axis=0).flatten())
+        dprot_grid = pd.Series([uncProt] * npoints * nlines)
+        dmass_grid = pd.Series([uncM] * npoints * nlines)
+        rovals = np.reshape(RoM(prot_grid, mass_grid), newshape=(npoints, nlines))
+        drovals = np.reshape(dRoM(prot_grid, mass_grid, dprot_grid, dmass_grid), newshape=(npoints, nlines))
+        rpvals = np.repeat(protvals, repeats=nlines, axis=0).reshape((npoints,nlines))
         labels = [f"$M_*=${i:.02f}M$_\odot$" for i in mvals]
-        legtitle = "Extent of Mean\n" + r"Alfv$\'e$n Surface"
         c = [cmap((mval - min(z)) / (max(z)-min(z))) for mval in mvals]
     else:
-        vkvals = pd.Series([1.5, 3.0, 4.5, 6.0])
-        rovals = np.outer(1/taucVK(vkvals), protvals).T
-        ravals = ra_schrijver(rovals)
-        rpvals = np.repeat(protvals, repeats=len(vkvals), axis=0).reshape((npoints,len(vkvals)))
-        labels = [f"$V-K=${i:.02f}" for i in vkvals]
-        legtitle = "Extent of Mean\n" + r"Alfv$\'e$n Surface"
+        uncVK = 0.1
+        # vkvals = pd.Series([1.5, 3.0, 4.5, 6.0])
+        vkvals = np.array([1.1 + 1e-5, 7.0 - 1e-5])
+        nlines = len(vkvals)
+        prot_grid = pd.Series(np.repeat(protvals, repeats=nlines))
+        vk_grid = pd.Series(np.repeat([vkvals], repeats=npoints, axis=0).flatten())
+        dprot_grid = pd.Series([uncProt] * npoints * nlines)
+        dvk_grid = pd.Series([uncVK] * npoints * nlines)
+        rovals = np.reshape(RoVK(prot_grid, vk_grid), newshape=(npoints, nlines))
+        drovals = np.reshape(dRoVK(prot_grid, vk_grid, dprot_grid, dvk_grid), newshape=(npoints, nlines))
+        rpvals = np.repeat(protvals, repeats=nlines, axis=0).reshape((npoints,nlines))
+        labels = [f"$M_*=${i:.02f}M$_\odot$" for i in vkvals]
         c = [cmap((vkval - min(z)) / (max(z)-min(z))) for vkval in vkvals]
-    
+
+    ravals = ra_schrijver(rovals)
+    dravals = dra_schrijver(rovals, drovals)
+    raupper = ravals + dravals
+    ralower = ravals - dravals
+    legtitle = "Extent of Mean\n" + r"Alfv$\'e$n Surface"
+
     ax4.set_prop_cycle("color", c)
     plot_lines = ax4.plot(ravals, rpvals, label=labels, zorder=1)
+    # ax4.plot(raupper, rpvals, linewidth=0.5, zorder=1.2)
+    # ax4.plot(ralower, rpvals, linewidth=0.5, zorder=1.2)
+    
+    for i in range(nlines):
+        ax4.fill_betweenx(rpvals[:,i], ralower[:,i], raupper[:,i], alpha=0.25, zorder=1.3 + i * 0.01, color=c[i])
     
 
     if show_names:
@@ -696,7 +716,7 @@ def plot_fig2_unc(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=Fals
                               fontsize=11)
     ax4.add_artist(legend_lines)
     ax4.legend(handles=size_handles, title="Planet Mass", loc=(0.62,0.01), title_fontsize=13, fontsize=11)
-    fig.savefig("imgs/FigA2.png" if use_stmass else "imgs/Fig2.png")
+    fig.savefig("imgs/FigA2_unc.png" if use_stmass else "imgs/Fig2_unc.png")
     plt.show()
 
 
@@ -709,8 +729,10 @@ if __name__ == "__main__":
 
     # master plots
     # plot_fig1(df, classcol="mass_class")
-    plot_fig2(df, use_stmass=False)
-    plot_fig2(df, use_stmass=True)
+    # plot_fig2(df, use_stmass=False)
+    # plot_fig2(df, use_stmass=True)
     # plot_figA2_st(df)
     # plot_figA2_vk(df)
     # plot_fig2_test(df)
+    plot_fig2_unc(df, use_stmass=False)
+    plot_fig2_unc(df, use_stmass=True)

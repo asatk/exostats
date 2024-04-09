@@ -196,7 +196,7 @@ def update_exos_nasa(nasa_exo: pd.DataFrame):
 
 
 def update_exos_habitable(nasa_exo: pd.DataFrame):
-    habitable = pd.read_csv("tables/habitable.txt", header=1)
+    habitable = pd.read_csv("tables/habitable.txt")
     exos_habitable = pd.merge(nasa_exo, habitable, how="inner", on="pl_name")[["hostname", "pl_name"]]
     exos_habitable.to_csv("current-exo-data/exos_habitable.csv", index=False)
 

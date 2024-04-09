@@ -41,7 +41,7 @@ descriptions = {
         "e_RASun": "Uncertainty in Alfven Radius (Rsun)",
         "ASHC": "A.S. Habitability Criterion",
         "e_ASHC": "Derived Unc. in ASHC",
-        "CHZ": "Optimistic HZ (Hill+ 2023)",
+        "CHZ": "Conservative HZ (Hill+ 2023)",
         "OHZ": "Optimistic HZ (Hill+ 2023)",
         "mass_class": "Planet Mass Class",
         "rad_class": "Planet Radius Class",

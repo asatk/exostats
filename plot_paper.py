@@ -18,7 +18,7 @@ CMAP1 = LinearSegmentedColormap("CMAP1", dict(
           (1.0, 1.0, 1.0)]
 ))
 CMAP2 = LinearSegmentedColormap.from_list("CMAP2", [
-    "saddlebrown",
+    # "saddlebrown",
     "darkred",
     "red",
     "orange",
@@ -305,7 +305,7 @@ def plot_fig2(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=False):
         rovals = np.outer(1/taucVK(vkvals), protvals).T
         ravals = ra_schrijver(rovals)
         rpvals = np.repeat(protvals, repeats=len(vkvals), axis=0).reshape((npoints,len(vkvals)))
-        labels = [f"$V-K=${i:.02f}" for i in vkvals]
+        labels = [f"$V-K=${i:.01f}" for i in vkvals]
         legtitle = "Extent of Mean\n" + r"Alfv$\'e$n Surface"
         c = [cmap((vkval - min(z)) / (max(z)-min(z))) for vkval in vkvals]
     
@@ -633,7 +633,7 @@ def plot_fig2_unc(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=Fals
     if use_stmass:
         uncM = 0.05
         # mvals = np.array([0.25, 0.5, 0.75, 1.0, 1.25])
-        mvals = np.array([0.08 + 1e-5, 1.36 - 1e-5])
+        mvals = np.array([0.08 + 1e-5, 0.4, 0.8, 1.36 - 1e-5])
         nlines = len(mvals)
         prot_grid = pd.Series(np.repeat(protvals, repeats=nlines))
         mass_grid = pd.Series(np.repeat([mvals], repeats=npoints, axis=0).flatten())
@@ -647,7 +647,7 @@ def plot_fig2_unc(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=Fals
     else:
         uncVK = 0.1
         # vkvals = pd.Series([1.5, 3.0, 4.5, 6.0])
-        vkvals = np.array([1.1 + 1e-5, 7.0 - 1e-5])
+        vkvals = np.array([1.1 + 1e-5, 3.0, 5.0, 7.0 - 1e-5])
         nlines = len(vkvals)
         prot_grid = pd.Series(np.repeat(protvals, repeats=nlines))
         vk_grid = pd.Series(np.repeat([vkvals], repeats=npoints, axis=0).flatten())
@@ -656,7 +656,7 @@ def plot_fig2_unc(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=Fals
         rovals = np.reshape(RoVK(prot_grid, vk_grid), newshape=(npoints, nlines))
         drovals = np.reshape(dRoVK(prot_grid, vk_grid, dprot_grid, dvk_grid), newshape=(npoints, nlines))
         rpvals = np.repeat(protvals, repeats=nlines, axis=0).reshape((npoints,nlines))
-        labels = [f"$M_*=${i:.02f}M$_\odot$" for i in vkvals]
+        labels = [f"$V-K=${i:.01f}" for i in vkvals]
         c = [cmap((vkval - min(z)) / (max(z)-min(z))) for vkval in vkvals]
 
     ravals = ra_schrijver(rovals)
@@ -670,8 +670,8 @@ def plot_fig2_unc(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=Fals
     # ax4.plot(raupper, rpvals, linewidth=0.5, zorder=1.2)
     # ax4.plot(ralower, rpvals, linewidth=0.5, zorder=1.2)
     
-    for i in range(nlines):
-        ax4.fill_betweenx(rpvals[:,i], ralower[:,i], raupper[:,i], alpha=0.25, zorder=1.3 + i * 0.01, color=c[i])
+    ax4.fill_betweenx(rpvals[:,0], ralower[:,0], raupper[:,0], alpha=0.25, zorder=1.3, color=c[0])
+    ax4.fill_betweenx(rpvals[:,-1], ralower[:,-1], raupper[:,-1], alpha=0.25, zorder=1.4, color=c[-1])
     
 
     if show_names:
@@ -729,8 +729,8 @@ if __name__ == "__main__":
 
     # master plots
     # plot_fig1(df, classcol="mass_class")
-    # plot_fig2(df, use_stmass=False)
-    # plot_fig2(df, use_stmass=True)
+    plot_fig2(df, use_stmass=False)
+    plot_fig2(df, use_stmass=True)
     # plot_figA2_st(df)
     # plot_figA2_vk(df)
     # plot_fig2_test(df)

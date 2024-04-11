@@ -1,11 +1,13 @@
-from .knn import learnkNN, predictLabel
-from .mlr import learnLM, predictLM
+from .kmeans import learnkNN, predictLabel
+from .mlr import OLSFit, RidgeFit
 from .plot import diag_plot
+from .utils import load
 
 __all__ = [
     "learnkNN",
     "predictLabel",
-    "learnLM",
-    "predictLM",
-    "diag_plot"
+    "OLSFit",
+    "RidgeFit",
+    "diag_plot",
+    "load"
 ]

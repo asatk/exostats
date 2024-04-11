@@ -1,9 +1,9 @@
-import stats.knn as knn
+import stats.kmeans as kmeans
 import numpy as np
 import pandas as pd
 
 if __name__ == "__main__":
-    df = pd.read_csv("current-exo-data/alfven_data.csv")
+    df = pd.read_csv("tables-merged/alfven_data.csv")
     cols = ["st_mass", "VK_color", "st_age", "Prot"]
     temp = df[cols]
     logic = np.prod([np.array(temp[col].notnull()) for col in cols], axis=0)

@@ -376,7 +376,7 @@ if __name__ == "__main__":
     do_tex = True
     do_tex2 = True
 
-    fname = "current-exo-data/alfven_data.csv"
+    fname = "tables-merged/alfven_data.csv"
     table = ascii.read(fname, format="csv").to_pandas()
 
     round_columns(table)

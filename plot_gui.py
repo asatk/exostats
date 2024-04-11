@@ -8,7 +8,7 @@ CLASS_LABELS = ['subterran', 'terran', 'superterran', 'giant','no class']
 CLASS_MARKERS = ['']
 
 if __name__ == "__main__":
-    df = pd.read_csv("current-exo-data/alfven_data.csv")
+    df = pd.read_csv("tables-merged/alfven_data.csv")
     title = "Magnetic Habitability Criterion of Goldilocks Exoplanets\nfor various Stellar Activity Levels"
     title = None
  

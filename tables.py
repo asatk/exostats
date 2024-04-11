@@ -24,7 +24,7 @@ def print_table(pl_name, Ro, dRo, MHC, dMHC, num):
 
 if __name__ == "__main__":
 
-    data_path = "current-exo-data/alfven_data.csv"
+    data_path = "tables-merged/alfven_data.csv"
     df = pd.read_csv(data_path)
 
     good_pls = df[(df["habitable"] == 1) & (df["MHC"] > 1)]

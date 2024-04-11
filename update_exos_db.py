@@ -47,11 +47,11 @@ def init_nasa_exo():
     # Add KOI/KIC ID columns of confirmed Kepler planets
     p_koi = re.compile(r"^K(\d+)\.\d{2}$")
     nasa_kep = pd.read_csv("tables/nasa_exo_kep.csv")
-    nasa_kep["KOI"] = nasa_kep.apply(lambda r: int(r.koi_name[1:-3]) if p_koi.match(str(r.koi_name)) is not None else np.nan, axis=1)
+    nasa_kep["KOI"] = nasa_kep.apply(lambda r: int(r["koi_name"][1:-3]) if p_koi.match(str(r["koi_name"])) is not None else np.nan, axis=1)
     nasa_kep.rename(columns={"kepid": "KIC"}, inplace=True)
     nasa_exo = pd.merge(nasa_exo, nasa_kep, how="left", on="pl_name")
-    nasa_exo["KOI"].fillna(-1, inplace=True, downcast="infer")
-    nasa_exo["KIC"].fillna(-1, inplace=True, downcast="infer")
+    nasa_exo["KOI"] = pd.to_numeric(nasa_exo["KOI"].fillna(-1), downcast="integer")
+    nasa_exo["KIC"] = pd.to_numeric(nasa_exo["KIC"].fillna(-1), downcast="integer")
 
     # Add TIC ID column
     p_tic = re.compile(r"^TIC (\d+)$")
@@ -60,14 +60,14 @@ def init_nasa_exo():
     # Add GAIA ID columns
     nasa_exo["GAIA"] = nasa_exo.apply(lambda x: int(x["gaia_id"][9:]) if re.match(r"^Gaia DR2 \d+$", str(x["gaia_id"])) is not None else np.nan, axis=1)
 
-    nasa_exo.to_csv("current-exo-data/nasa_exo.csv", index=False)
+    nasa_exo.to_csv("tables-merged/nasa_exo.csv", index=False)
     return nasa_exo
 
 
 def update_exos_sim10(nasa_exo: pd.DataFrame):
 
     # Load Simpson 2010 Rotation Period data
-    sim10_prot = pd.read_csv("tables/custom_prot.txt", sep="\s+", header=1, nrows=11)
+    sim10_prot = pd.read_csv("tables/custom_prot.txt", sep=r"\s+", header=1, nrows=11)
 
     sim10_prot = sim10_prot[["name","prot","eprot", "grade"]]
     sim10_prot.rename(columns={"name": "hd_name", "prot":"Prot","eprot":"e_Prot"}, inplace=True)
@@ -77,7 +77,7 @@ def update_exos_sim10(nasa_exo: pd.DataFrame):
 
     exos_sim10 = pd.merge(nasa_exo, sim10_prot, how="inner", on="hd_name")[["hostname","Prot","e_Prot", "db"]]
     exos_sim10.drop_duplicates(subset="hostname", inplace=True)
-    exos_sim10.to_csv("current-exo-data/hosts_sim10.csv", index=False)
+    exos_sim10.to_csv("tables-merged/hosts_sim10.csv", index=False)
     return exos_sim10
 
 
@@ -85,7 +85,7 @@ def update_exos_sim10(nasa_exo: pd.DataFrame):
 def update_exos_mcq13(nasa_exo: pd.DataFrame):
 
     # Load McQuillan 2013 KOI stellar rotation rate survey
-    mcq13_kois = pd.read_csv("tables/prot_mcq_2013.dat", sep="\s+")
+    mcq13_kois = pd.read_csv("tables/prot_mcq_2013.dat", sep=r"\s+")
     mcq13_kois = mcq13_kois[["KOI","PRot", "e_PRot"]]
     mcq13_kois.rename(columns={"PRot":"Prot","e_PRot": "e_Prot"}, inplace=True)
     mcq13_kois.insert(len(mcq13_kois.columns), "db", "mcq13")
@@ -94,14 +94,14 @@ def update_exos_mcq13(nasa_exo: pd.DataFrame):
     # Select stars from mcq13 whose KOI is in nasa db
     exos_mcq13 = pd.merge(nasa_exo, mcq13_kois, how="inner", on="KOI")[["hostname","KOI","Prot","e_Prot", "db"]]
     exos_mcq13.drop_duplicates(subset="hostname", inplace=True)
-    exos_mcq13.to_csv("current-exo-data/hosts_mcq13.csv", index=False)
+    exos_mcq13.to_csv("tables-merged/hosts_mcq13.csv", index=False)
     return exos_mcq13
 
 
 def update_exos_mcq14(nasa_exo: pd.DataFrame):
 
     # Load McQuillan 2014 KIC stellar rotation rate survey
-    mcq14_kics = pd.read_csv("tables/prot_mcq_2014.dat", sep="\s+")
+    mcq14_kics = pd.read_csv("tables/prot_mcq_2014.dat", sep=r"\s+")
     mcq14_kics = mcq14_kics[["KIC","PRot", "e_PRot"]]
     mcq14_kics.rename(columns={"PRot":"Prot","e_PRot": "e_Prot"}, inplace=True)
     mcq14_kics.insert(len(mcq14_kics.columns), "db", "mcq14")
@@ -109,14 +109,14 @@ def update_exos_mcq14(nasa_exo: pd.DataFrame):
 
     exos_mcq14 = pd.merge(nasa_exo, mcq14_kics, how="inner", on="KIC")[["hostname","KIC","Prot","e_Prot", "db"]]
     exos_mcq14.drop_duplicates(subset="hostname", inplace=True)
-    exos_mcq14.to_csv("current-exo-data/hosts_mcq14.csv", index=False)
+    exos_mcq14.to_csv("tables-merged/hosts_mcq14.csv", index=False)
     return exos_mcq14
 
 
 def update_exos_arm15(nasa_exo: pd.DataFrame):
 
     # Load Armstring 2015 Kepler flare, rotation, and activity of habitable pl survey
-    arm15_prot = pd.read_csv("tables/custom_prot.txt", sep="\s+", header=14, nrows=7)
+    arm15_prot = pd.read_csv("tables/custom_prot.txt", sep=r"\s+", header=14, nrows=7)
     
     arm15_prot = arm15_prot[["hostname","prot_acf","eprot_acf"]]
     arm15_prot.rename(columns={"prot_acf":"Prot","eprot_acf":"e_Prot"}, inplace=True)
@@ -125,7 +125,7 @@ def update_exos_arm15(nasa_exo: pd.DataFrame):
 
     exos_arm15 = pd.merge(nasa_exo, arm15_prot, how="inner", on="hostname")[["hostname","Prot","e_Prot", "db"]]
     exos_arm15.drop_duplicates(subset="hostname", inplace=True)
-    exos_arm15.to_csv("current-exo-data/hosts_arm15.csv", index=False)
+    exos_arm15.to_csv("tables-merged/hosts_arm15.csv", index=False)
     return exos_arm15
 
 
@@ -134,7 +134,7 @@ def update_exos_mar20(nasa_exo: pd.DataFrame):
     # Load Martin 2020 TOI stellar rotation period survey
     mar20 = pd.read_csv("tables/prot_martin_2020_tic.csv", usecols=[0,1,2,3,4])
     mar20["TIC"] = mar20.apply(lambda x: int(x["TIC_ID"]), axis=1)
-    mar20.drop(columns="TIC_ID",inplace=True)
+    mar20 = mar20.drop(columns="TIC_ID")
     mar20.rename(columns={"eProt":"e_Prot"}, inplace=True)
     mar20.insert(len(mar20.columns), "db", "mar20")
     mar20 = mar20[mar20.Prot.notnull()]
@@ -147,7 +147,7 @@ def update_exos_mar20(nasa_exo: pd.DataFrame):
 
     exos_mar20 = pd.merge(nasa_exo, mar20_prot, how="inner", on="TIC")[["hostname","TIC","Prot","e_Prot", "db"]]
     exos_mar20.drop_duplicates(subset="hostname", inplace=True)
-    exos_mar20.to_csv("current-exo-data/hosts_mar20.csv", index=False)
+    exos_mar20.to_csv("tables-merged/hosts_mar20.csv", index=False)
     return exos_mar20
 
 
@@ -165,7 +165,7 @@ def select_prot_martin(prot_str: str, fn=np.min):
 def update_exos_lu22(nasa_exo: pd.DataFrame):
 
     # Load Lu 2022 ZTF rotation period survey
-    lu22_gaia = pd.read_csv("tables/prot_lu_gaia.txt", header=21, sep="\s+")
+    lu22_gaia = pd.read_csv("tables/prot_lu_gaia.txt", header=21, sep=r"\s+")
 
     lu22_gaia = lu22_gaia[["GAIA","Prot"]]
     lu22_gaia.insert(len(lu22_gaia.columns), "db", "lu22")
@@ -177,28 +177,28 @@ def update_exos_lu22(nasa_exo: pd.DataFrame):
     exos_lu22 = pd.merge(nasa_exo, lu22_gaia, how="inner", on="GAIA")[["hostname","GAIA","Prot", "db"]]
     exos_lu22.drop_duplicates(subset="hostname", inplace=True)
 
-    exos_lu22.to_csv("current-exo-data/hosts_lu22.csv",index=False)
+    exos_lu22.to_csv("tables-merged/hosts_lu22.csv",index=False)
     return exos_lu22
 
 
 def update_exos_nasa(nasa_exo: pd.DataFrame):
 
     # Load NASA Exoplanet Archive rotation period entries
-    exos_nasa = nasa_exo[nasa_exo.st_rotp.notnull()][["hostname", "st_rotp", "st_rotperr1", "st_rotperr2"]]
-    exos_nasa["st_rotperr"] = nasa_exo.apply(lambda r: np.max([r.st_rotperr1, np.fabs(r.st_rotperr2)]), axis=1)
+    exos_nasa = nasa_exo[nasa_exo["st_rotp"].notnull()][["hostname", "st_rotp", "st_rotperr1", "st_rotperr2"]]
+    exos_nasa["st_rotperr"] = nasa_exo.apply(lambda r: np.max([r["st_rotperr1"], np.fabs(r["st_rotperr2"])]), axis=1)
     exos_nasa.rename(columns={"st_rotp": "Prot", "st_rotperr": "e_Prot"}, inplace=True)
     exos_nasa.drop_duplicates(subset="hostname", inplace=True)
     exos_nasa.drop(columns=["st_rotperr1", "st_rotperr2"], inplace=True)
     exos_nasa.insert(len(exos_nasa.columns), "db", "nasa")
 
-    exos_nasa.to_csv("current-exo-data/hosts_nasa.csv", index=False)
+    exos_nasa.to_csv("tables-merged/hosts_nasa.csv", index=False)
     return exos_nasa
 
 
 def update_exos_habitable(nasa_exo: pd.DataFrame):
     habitable = pd.read_csv("tables/habitable.txt")
     exos_habitable = pd.merge(nasa_exo, habitable, how="inner", on="pl_name")[["hostname", "pl_name"]]
-    exos_habitable.to_csv("current-exo-data/exos_habitable.csv", index=False)
+    exos_habitable.to_csv("tables-merged/exos_habitable.csv", index=False)
 
 
 def update_exos_hill23(nasa_exo: pd.DataFrame):
@@ -209,7 +209,7 @@ def update_exos_hill23(nasa_exo: pd.DataFrame):
     hill23 = hill23[["Planet", "CHZ", "OHZ"]]
     hill23.rename(columns={"Planet": "pl_name"}, inplace=True)
     exos_hill23 = pd.merge(nasa_exo, hill23, how="inner", on="pl_name")[["hostname", "pl_name", "CHZ", "OHZ"]]
-    exos_hill23.to_csv("current-exo-data/exos_hill23.csv", index=False)
+    exos_hill23.to_csv("tables-merged/exos_hill23.csv", index=False)
 
 
 if __name__ == "__main__":
@@ -249,25 +249,25 @@ if __name__ == "__main__":
             hosts_nasa["Prot"].count(), hosts_nasa["e_Prot"].count()))
 
     if merge_dbs:
-        hosts_sim10 = pd.read_csv("current-exo-data/hosts_sim10.csv")
-        hosts_mcq13 = pd.read_csv("current-exo-data/hosts_mcq13.csv")
-        hosts_mcq14 = pd.read_csv("current-exo-data/hosts_mcq14.csv")
-        hosts_arm15 = pd.read_csv("current-exo-data/hosts_arm15.csv")
-        hosts_mar20 = pd.read_csv("current-exo-data/hosts_mar20.csv")
-        hosts_lu22 = pd.read_csv("current-exo-data/hosts_lu22.csv")
-        hosts_nasa = pd.read_csv("current-exo-data/hosts_nasa.csv")
+        hosts_sim10 = pd.read_csv("tables-merged/hosts_sim10.csv")
+        hosts_mcq13 = pd.read_csv("tables-merged/hosts_mcq13.csv")
+        hosts_mcq14 = pd.read_csv("tables-merged/hosts_mcq14.csv")
+        hosts_arm15 = pd.read_csv("tables-merged/hosts_arm15.csv")
+        hosts_mar20 = pd.read_csv("tables-merged/hosts_mar20.csv")
+        hosts_lu22 = pd.read_csv("tables-merged/hosts_lu22.csv")
+        hosts_nasa = pd.read_csv("tables-merged/hosts_nasa.csv")
 
         hosts = pd.concat([hosts_sim10, hosts_mcq13, hosts_mcq14, hosts_arm15, hosts_mar20, hosts_lu22, hosts_nasa], ignore_index=True)
-        hosts["e_Prot"] = hosts.apply(lambda r: np.nan if r.e_Prot == 0 else r.e_Prot, axis=1)
-        hosts["KOI"].fillna(-1, inplace=True, downcast="infer")
-        hosts["KIC"].fillna(-1, inplace=True, downcast="infer")
-        hosts["TIC"].fillna(-1, inplace=True, downcast="infer")
-        hosts["GAIA"].fillna(-1, inplace=True, downcast="infer")
+        hosts["e_Prot"] = hosts.apply(lambda r: np.nan if r["e_Prot"] == 0 else r["e_Prot"], axis=1)
+        hosts["KOI"] = pd.to_numeric(hosts["KOI"].fillna(-1), downcast="integer")
+        hosts["KIC"] = pd.to_numeric(hosts["KIC"].fillna(-1), downcast="integer")
+        hosts["TIC"] = pd.to_numeric(hosts["TIC"].fillna(-1), downcast="integer")
+        hosts["GAIA"] = pd.to_numeric(hosts["GAIA"].fillna(-1), downcast="integer")
 
         hosts.sort_values("e_Prot", inplace=True, ignore_index=True, ascending=True)
         hosts.drop_duplicates(subset="hostname", inplace=True, keep="first")
         hosts = hosts[["hostname", "Prot", "e_Prot", "KOI", "KIC", "TIC", "GAIA", "db"]]
-        hosts.to_csv("current-exo-data/hosts_prot.csv", index=False)
+        hosts.to_csv("tables-merged/hosts_prot.csv", index=False)
         
         print("[hosts]\nProt {}\ne_Prot {}\n".format(
             hosts["Prot"].count(), hosts["e_Prot"].count()))

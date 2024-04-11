@@ -9,7 +9,7 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
 
     # full_sample_path = "backup-2024.03.12/2024.03.12_exo-data/nasa_exo.csv"
-    full_sample_path = "current-exo-data/nasa_exo.csv"
+    full_sample_path = "tables-merged/nasa_exo.csv"
     full_sample = pd.read_csv(full_sample_path)
 
     print("EXOS - [{}]".format(full_sample["pl_name"].count()))
@@ -26,8 +26,8 @@ if __name__ == "__main__":
     "db" in full_sample.columns
 
     # chz flag
-    exos_habitable = pd.read_csv("current-exo-data/exos_habitable.csv")
-    exos_hill23 = pd.read_csv("current-exo-data/exos_hill23.csv")
+    exos_habitable = pd.read_csv("tables-merged/exos_habitable.csv")
+    exos_hill23 = pd.read_csv("tables-merged/exos_hill23.csv")
 
     # habitable_pl_names = set(exos_habitable.pl_name)
     habitable_pl_names = set(exos_habitable["pl_name"]).union(set(exos_hill23["pl_name"]))
@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     # ROTATION PERIOD CUT
 
-    hosts_path = "current-exo-data/hosts_prot.csv"
+    hosts_path = "tables-merged/hosts_prot.csv"
     # hosts_path = "backup-2024.03.12/2024.03.12_exo-data/hosts_prot.csv"
     hosts = pd.read_csv(hosts_path)
     prot_sample = pd.merge(full_sample, hosts, on="hostname")

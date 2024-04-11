@@ -344,8 +344,8 @@ def planet_classes(alfven_data: pd.DataFrame) -> pd.DataFrame:
 
     alfven_data.reset_index(inplace=True)
 
-    exos_habitable = pd.read_csv("current-exo-data/exos_habitable.csv")
-    exos_hill23 = pd.read_csv("current-exo-data/exos_hill23.csv")
+    exos_habitable = pd.read_csv("tables-merged/exos_habitable.csv")
+    exos_hill23 = pd.read_csv("tables-merged/exos_hill23.csv")
 
     habitable_pl_names = set(exos_habitable["pl_name"]).union(set(exos_hill23["pl_name"]))
 
@@ -365,9 +365,9 @@ def planet_classes(alfven_data: pd.DataFrame) -> pd.DataFrame:
 
 
 def calculate_exos() -> pd.DataFrame:
-    nasa_exo = pd.read_csv("current-exo-data/nasa_exo.csv")
+    nasa_exo = pd.read_csv("tables-merged/nasa_exo.csv")
     nasa_exo = measured_uncertainties(nasa_exo)
-    stars_prot = pd.read_csv("current-exo-data/hosts_prot.csv")
+    stars_prot = pd.read_csv("tables-merged/hosts_prot.csv")
 
     # List exoplanets with a host star that has a rotation period + stats
     prot_col_list = ["pl_name","hostname", "pl_letter", "Prot","e_Prot",
@@ -404,7 +404,7 @@ def calculate_exos() -> pd.DataFrame:
 
     alfven_data.rename(columns={"db": "r_Prot"}, inplace=True)
 
-    alfven_data.to_csv("current-exo-data/alfven_data.csv", index=False)
+    alfven_data.to_csv("tables-merged/alfven_data.csv", index=False)
     return alfven_data
 
 
@@ -432,8 +432,8 @@ if __name__ == "__main__":
     print("[chz & ashc]\n{}\n".format(chz_ashc_data[cols_print].count()))
 
     CHZ_names = chz_data[["pl_name", "Ro", "ASHC"]]
-    CHZ_names.to_csv("current-exo-data/CHZ_names.csv", index=False)
+    CHZ_names.to_csv("tables-merged/CHZ_names.csv", index=False)
 
     CHZ_ASHC_names = chz_ashc_data[["pl_name", "Ro", "ASHC"]]
-    CHZ_ASHC_names.to_csv("current-exo-data/CHZ_ASHC_names.csv", index=False)
+    CHZ_ASHC_names.to_csv("tables-merged/CHZ_ASHC_names.csv", index=False)
     

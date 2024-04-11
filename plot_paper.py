@@ -724,7 +724,7 @@ def plot_fig2_unc(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=Fals
 if __name__ == "__main__":
 
     # Load planet habitability and plotting data
-    df = pd.read_csv('current-exo-data/alfven_data.csv')
+    df = pd.read_csv('tables-merged/alfven_data.csv')
     df_h = df[df["habitable"] == 1].reset_index()
 
     # master plots

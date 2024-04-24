@@ -2,14 +2,16 @@ import numpy as np
 import pandas as pd
 import re
 from os import system
+from datetime import datetime
 
-# FETCH NEW EXO DATA:
-# > cat nasa_exo_query.txt | xargs wget -o nasa_exo_PSCP.csv
-fetch_DBs = True   # Last updated: 2024.03.20:10:00 CDT
+# FETCH NEW EXO DATA
+fetch_DBs = True   # Last updated: 2024.04.23 16:44:33 CDT
 update_dbs = True
 merge_dbs = True
 
 '''
+need updating:
+
 DATA/COLUMNS THAT ARE NEEDED
  - Prot/PRot/st_rotp
  - pl_name (Planet Name)
@@ -217,9 +219,11 @@ if __name__ == "__main__":
     if fetch_DBs:
         print("Updating Planetary Systems Composite Parameters (pscomppars) database!")
         system("cat nasa_exo_query.txt | xargs wget -o log_PSCP -O tables/nasa_exo_PSCP.csv")
+        print(f"Timestamped at: {datetime.now()}")
 
         print("Updating Kepler confirmed planets (kepnames) database!")
         system("cat nasa_exo_kep_query.txt | xargs wget -o log_kep -O tables/nasa_exo_kep.csv")
+        print(f"Timestamped at: {datetime.now()}")
 
     if update_dbs:
         nasa_exo = init_nasa_exo()

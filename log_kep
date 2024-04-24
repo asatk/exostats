@@ -1,13 +1,13 @@
---2024-04-10 22:34:04--  https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+keplernames&format=csv
+--2024-04-23 16:44:30--  https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+keplernames&format=csv
 Resolving exoplanetarchive.ipac.caltech.edu (exoplanetarchive.ipac.caltech.edu)... 134.4.54.151
 Connecting to exoplanetarchive.ipac.caltech.edu (exoplanetarchive.ipac.caltech.edu)|134.4.54.151|:443... connected.
 HTTP request sent, awaiting response... 200 OK
 Length: unspecified [text/plain]
 Saving to: ‘tables/nasa_exo_kep.csv’
 
-     0K .......... .......... .......... .......... ..........  223K
-    50K .......... .......... .......... .......... ..........  251K
-   100K .......... .......... .......... .......... ....        242K=0.6s
+     0K .......... .......... .......... .......... ..........  321K
+    50K .......... .......... .......... .......... ..........  515K
+   100K .......... .......... .......... .......... ....        297K=0.4s
 
-2024-04-10 22:34:07 (238 KB/s) - ‘tables/nasa_exo_kep.csv’ saved [147893]
+2024-04-23 16:44:33 (359 KB/s) - ‘tables/nasa_exo_kep.csv’ saved [147641]
 

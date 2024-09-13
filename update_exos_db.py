@@ -5,7 +5,7 @@ from os import system
 from datetime import datetime
 
 # FETCH NEW EXO DATA
-fetch_DBs = True   # Last updated: 2024.04.23 16:44:33 CDT
+fetch_DBs = True   # Last updated: 2024.09.02 11:59:30 CDT
 update_dbs = True
 merge_dbs = True
 

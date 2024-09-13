@@ -193,7 +193,7 @@ def plot_fig1(df: pd.DataFrame, classcol: str="mass_class"):
         temp = df_h[df_inv == idx]
 
         # maybes_where = ((temp["ASHC"] - temp["e_ASHC"] < 1) & (temp["ASHC"] > 1)) | ((temp["ASHC"] + temp["e_ASHC"] > 1) & (temp["ASHC"] < 1))
-        maybes_where = (temp["pl_name"] == "TRAPPIST-1 e") | (temp["pl_name"] == "GJ 1002 c") | (temp["pl_name"] == "GJ 273 b")
+        maybes_where = (temp["pl_name"] == "TRAPPIST-1 e") | (temp["pl_name"] == "GJ 273 b")
         maybes = temp[maybes_where]
         certain = temp[~maybes_where]
 

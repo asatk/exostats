@@ -181,12 +181,16 @@ def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
     x = nasa_exo
     nasa_exo["e_pl_bmasse"] = \
         np.max([x["pl_bmasseerr1"],np.fabs(x["pl_bmasseerr2"])], axis=0)
+    nasa_exo["e_pl_bmassj"] = \
+        np.max([x["pl_bmassjerr1"],np.fabs(x["pl_bmassjerr2"])], axis=0)
     nasa_exo["e_pl_orbsmax"] = \
         np.max([x["pl_orbsmaxerr1"],np.fabs(x["pl_orbsmaxerr2"])], axis=0)
     nasa_exo["e_pl_orbeccen"] = \
         np.max([x["pl_orbeccenerr1"],np.fabs(x["pl_orbeccenerr2"])], axis=0)
     nasa_exo["e_pl_rade"] = \
         np.max([x["pl_radeerr1"],np.fabs(x["pl_radeerr2"])], axis=0)
+    nasa_exo["e_pl_radj"] = \
+        np.max([x["pl_radjerr1"],np.fabs(x["pl_radjerr2"])], axis=0)
     nasa_exo["e_st_mass"] = \
         np.max([x["st_masserr1"],np.fabs(x["st_masserr2"])], axis=0)
     nasa_exo["e_st_rad"] = \
@@ -372,6 +376,7 @@ def calculate_exos() -> pd.DataFrame:
     # List exoplanets with a host star that has a rotation period + stats
     prot_col_list = ["pl_name","hostname", "pl_letter", "Prot","e_Prot",
         "pl_bmasse", "e_pl_bmasse", "pl_bmassprov", "pl_rade", "e_pl_rade",
+        "pl_bmassj", "e_pl_bmassj", "pl_radj", "e_pl_rade",
         "pl_orbsmax", "e_pl_orbsmax", "pl_orbeccen", "e_pl_orbeccen",
         "sy_vmag", "e_sy_vmag", "sy_kmag", "e_sy_kmag", "st_rad",
         "e_st_rad", "st_mass", "e_st_mass", "sy_dist", "e_sy_dist", "KOI",
@@ -386,6 +391,7 @@ def calculate_exos() -> pd.DataFrame:
     # List exoplanets that have all of the relevant stats: Ro, a, e 
     data_col_list = ["pl_name", "hostname", "pl_letter", "pl_orbsmax",
         "e_pl_orbsmax", "pl_orbeccen", "e_pl_orbeccen", "pl_rade", "e_pl_rade",
+        "pl_bmassj", "e_pl_bmassj", "pl_radj", "e_pl_rade",
         "pl_bmasse", "e_pl_bmasse", "st_rad", "e_st_rad", "RoVK", "RoM",
         "Ro", "e_RoVK", "e_RoM", "e_Ro", "KOI", "KIC", "TIC", "GAIA", "db",
         "sy_dist", "e_sy_dist", "st_mass", "e_st_mass", "sy_vmag", "e_sy_vmag",

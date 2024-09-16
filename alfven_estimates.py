@@ -197,6 +197,8 @@ def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
         np.max([x["st_raderr1"],np.fabs(x["st_raderr2"])], axis=0)
     nasa_exo["e_st_age"] = \
         np.max([x["st_ageerr1"],np.fabs(x["st_ageerr2"])], axis=0)
+    nasa_exo["e_st_lum"] = \
+        np.max([x["st_lumerr1"],np.fabs(x["st_lumerr2"])], axis=0)
     nasa_exo["e_sy_dist"] = \
         np.max([x["sy_disterr1"],np.fabs(x["sy_disterr2"])], axis=0)
     nasa_exo["e_sy_kmag"] = \
@@ -378,6 +380,7 @@ def calculate_exos() -> pd.DataFrame:
         "pl_bmasse", "e_pl_bmasse", "pl_bmassprov", "pl_rade", "e_pl_rade",
         "pl_bmassj", "e_pl_bmassj", "pl_radj", "e_pl_rade",
         "pl_orbsmax", "e_pl_orbsmax", "pl_orbeccen", "e_pl_orbeccen",
+        "st_lum", "e_st_lum",
         "sy_vmag", "e_sy_vmag", "sy_kmag", "e_sy_kmag", "st_rad",
         "e_st_rad", "st_mass", "e_st_mass", "sy_dist", "e_sy_dist", "KOI",
         "st_teff", "st_age", "e_st_age",

@@ -392,14 +392,16 @@ def calculate_exos() -> pd.DataFrame:
     prot_data = estimate_rossby(prot_data)
 
     # List exoplanets that have all of the relevant stats: Ro, a, e 
-    data_col_list = ["pl_name", "hostname", "pl_letter", "pl_orbsmax",
+    data_col_list = [
+        "pl_name", "hostname", "pl_letter", "pl_orbsmax",
         "e_pl_orbsmax", "pl_orbeccen", "e_pl_orbeccen", "pl_rade", "e_pl_rade",
         "pl_bmassj", "e_pl_bmassj", "pl_radj", "e_pl_rade",
         "pl_bmasse", "e_pl_bmasse", "st_rad", "e_st_rad", "RoVK", "RoM",
         "Ro", "e_RoVK", "e_RoM", "e_Ro", "KOI", "KIC", "TIC", "GAIA", "db",
         "sy_dist", "e_sy_dist", "st_mass", "e_st_mass", "sy_vmag", "e_sy_vmag",
         "sy_kmag", "e_sy_kmag", "Prot","e_Prot", "VK_color", "e_VK_color",
-        "st_teff", "st_age", "e_st_age", "Tauc", "e_Tauc", "db"]
+        "st_teff", "st_lum", "e_st_lum", "st_age", "e_st_age", "Tauc", "e_Tauc"
+    ]
     
     # Planets must have a calculable r_p - both a and e.
     where_data = prot_data["Ro"].notnull() & prot_data["pl_orbsmax"].notnull()

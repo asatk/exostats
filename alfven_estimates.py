@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import re
 
 
 AVK = 0.64
@@ -177,34 +178,27 @@ def dlx_farrish(ro, dro):
         np.square(p_f21 * dro / ro / LN10)
     )
 
+
 def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
-    x = nasa_exo
-    nasa_exo["e_pl_bmasse"] = \
-        np.max([x["pl_bmasseerr1"],np.fabs(x["pl_bmasseerr2"])], axis=0)
-    nasa_exo["e_pl_bmassj"] = \
-        np.max([x["pl_bmassjerr1"],np.fabs(x["pl_bmassjerr2"])], axis=0)
-    nasa_exo["e_pl_orbsmax"] = \
-        np.max([x["pl_orbsmaxerr1"],np.fabs(x["pl_orbsmaxerr2"])], axis=0)
-    nasa_exo["e_pl_orbeccen"] = \
-        np.max([x["pl_orbeccenerr1"],np.fabs(x["pl_orbeccenerr2"])], axis=0)
-    nasa_exo["e_pl_rade"] = \
-        np.max([x["pl_radeerr1"],np.fabs(x["pl_radeerr2"])], axis=0)
-    nasa_exo["e_pl_radj"] = \
-        np.max([x["pl_radjerr1"],np.fabs(x["pl_radjerr2"])], axis=0)
-    nasa_exo["e_st_mass"] = \
-        np.max([x["st_masserr1"],np.fabs(x["st_masserr2"])], axis=0)
-    nasa_exo["e_st_rad"] = \
-        np.max([x["st_raderr1"],np.fabs(x["st_raderr2"])], axis=0)
-    nasa_exo["e_st_age"] = \
-        np.max([x["st_ageerr1"],np.fabs(x["st_ageerr2"])], axis=0)
-    nasa_exo["e_st_lum"] = \
-        np.max([x["st_lumerr1"],np.fabs(x["st_lumerr2"])], axis=0)
-    nasa_exo["e_sy_dist"] = \
-        np.max([x["sy_disterr1"],np.fabs(x["sy_disterr2"])], axis=0)
-    nasa_exo["e_sy_kmag"] = \
-        np.max([x["sy_kmagerr1"],np.fabs(x["sy_kmagerr2"])], axis=0)
-    nasa_exo["e_sy_vmag"] = \
-        np.max([x["sy_vmagerr1"],np.fabs(x["sy_vmagerr2"])], axis=0)
+    
+    df = nasa_exo
+    err_calc = lambda e1, e2: np.max([err1, np.fabs(err2)], axis=0)
+
+    params = {}
+    p = re.compile("(.+)err(1|2)$")
+    for col in nasa_exo.columns:
+        # find parameter name that ends with err1 or err2 and extract the prefix
+        match = p.match(col)
+        if match is None:
+            continue
+        param = match.group(1)
+        params[param] = params.get(param, 0) + 1
+        
+        # Only calculate error if only two error parameters are available in table
+        if params[param] == 2:
+            err1 = df[param + "err1"]
+            err2 = df[param + "err2"]
+            df["e_" + param] = err_calc(err1, err2)
     
     return nasa_exo
 
@@ -376,15 +370,17 @@ def calculate_exos() -> pd.DataFrame:
     stars_prot = pd.read_csv("tables-merged/hosts_prot.csv")
 
     # List exoplanets with a host star that has a rotation period + stats
-    prot_col_list = ["pl_name","hostname", "pl_letter", "Prot","e_Prot",
+    prot_col_list = [
+        "pl_name","hostname", "pl_letter", "Prot","e_Prot",
         "pl_bmasse", "e_pl_bmasse", "pl_bmassprov", "pl_rade", "e_pl_rade",
         "pl_bmassj", "e_pl_bmassj", "pl_radj", "e_pl_rade",
         "pl_orbsmax", "e_pl_orbsmax", "pl_orbeccen", "e_pl_orbeccen",
-        "st_lum", "e_st_lum",
+        "st_lum", "e_st_lum", "st_met", "e_st_met",
         "sy_vmag", "e_sy_vmag", "sy_kmag", "e_sy_kmag", "st_rad",
         "e_st_rad", "st_mass", "e_st_mass", "sy_dist", "e_sy_dist", "KOI",
-        "st_teff", "st_age", "e_st_age",
-        "KIC", "TIC", "GAIA", "db"]
+        "st_teff", "st_age", "e_st_age", "st_spectype",
+        "KIC", "TIC", "GAIA", "db"
+    ]
     prot_data = pd.merge(nasa_exo, stars_prot, how="inner", on="hostname",
                          suffixes=("_x", None))[prot_col_list]
 
@@ -400,7 +396,8 @@ def calculate_exos() -> pd.DataFrame:
         "Ro", "e_RoVK", "e_RoM", "e_Ro", "KOI", "KIC", "TIC", "GAIA", "db",
         "sy_dist", "e_sy_dist", "st_mass", "e_st_mass", "sy_vmag", "e_sy_vmag",
         "sy_kmag", "e_sy_kmag", "Prot","e_Prot", "VK_color", "e_VK_color",
-        "st_teff", "st_lum", "e_st_lum", "st_age", "e_st_age", "Tauc", "e_Tauc"
+        "st_teff", "st_lum", "e_st_lum", "st_age", "e_st_age", "Tauc", "e_Tauc",
+        "st_met", "e_st_met", "st_spectype"
     ]
     
     # Planets must have a calculable r_p - both a and e.
@@ -413,8 +410,17 @@ def calculate_exos() -> pd.DataFrame:
     # Assign size and habitability classifications to each planet
     alfven_data = planet_classes(alfven_data)
 
-    alfven_data.rename(columns={"db": "r_Prot"}, inplace=True)
-
+    new_col_names = {"db": "r-Prot"}
+    for col in alfven_data.columns:
+        if "e_" == col[:2]:
+            continue
+        i = col.find("_")
+        if i != -1:
+            new_col = col[:i] + "-" + col[i+1:]
+            new_col_names[col] = new_col
+    
+    print(new_col_names)
+    alfven_data.rename(columns=new_col_names, inplace=True)
     alfven_data.to_csv("tables-merged/alfven_data.csv", index=False)
     return alfven_data
 
@@ -428,10 +434,10 @@ if __name__ == "__main__":
     chz_data = alfven_data[alfven_data["habitable"] == 1]
     chz_ashc_data = alfven_data[(alfven_data["ASHC"] > 1.0) & (alfven_data["habitable"] == 1)]
 
-    cols_print_long = ["pl_name", "mass_class", "rad_class", "st_mass",
-                       "st_rad", "RoVK", "e_RoVK", "RoM", "e_RoM", "Ro", "e_Ro",
+    cols_print_long = ["pl-name", "mass-class", "rad-class", "st-mass",
+                       "st-rad", "RoVK", "e_RoVK", "RoM", "e_RoM", "Ro", "e_Ro",
                        "ASHC", "e_ASHC"]
-    cols_print_brief = ["pl_name", "Ro", "e_Ro", "ASHC", "e_ASHC"]
+    cols_print_brief = ["pl-name", "Ro", "e_Ro", "ASHC", "e_ASHC"]
 
     if print_brief:
         cols_print = cols_print_brief
@@ -442,9 +448,9 @@ if __name__ == "__main__":
     print("[chz]\n{}\n".format(chz_data[cols_print].count()))
     print("[chz & ashc]\n{}\n".format(chz_ashc_data[cols_print].count()))
 
-    CHZ_names = chz_data[["pl_name", "Ro", "ASHC"]]
+    CHZ_names = chz_data[["pl-name", "Ro", "ASHC"]]
     CHZ_names.to_csv("tables-merged/CHZ_names.csv", index=False)
 
-    CHZ_ASHC_names = chz_ashc_data[["pl_name", "Ro", "ASHC"]]
+    CHZ_ASHC_names = chz_ashc_data[["pl-name", "Ro", "ASHC"]]
     CHZ_ASHC_names.to_csv("tables-merged/CHZ_ASHC_names.csv", index=False)
     

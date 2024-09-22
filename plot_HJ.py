@@ -1,42 +1,29 @@
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
-from matplotlib.colors import to_hex
 from matplotlib import colormaps as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import pandas as pd
 import re
 
-from matplotlib.colors import Colormap
-
 from alfven_estimates import ra_schrijver, dra_schrijver, RoM, dRoM, RoVK, dRoVK
 
 
-CMAP1 = ListedColormap([
-# CMAP1 = LinearSegmentedColormap.from_list("CMAP1", [
-    # "darkred",
+CMAP3 = ListedColormap([
     "firebrick",
-    # "orangered",
     "orange",
     "yellow",
     "lightyellow",
-], "CMAP1")
+], "CMAP3")
 
 
+CMAP4 = LinearSegmentedColormap.from_list("CMAP4", [
+    "firebrick",
+    "orange",
+    "yellow",
+    "lightyellow",
+])
 
-# CMAP1 = ListedColormap([
-# # CMAP1 = LinearSegmentedColormap.from_list("CMAP1", [
-#     "darkred",
-#     # "firebrick",
-#     # "orangered"
-#     "orange",
-#     "yellow",
-#     "lightyellow",
-#     # "lightgoldenrodyellow",
-#     "lightcyan",
-#     "lightskyblue",
-#     # "deepskyblue",
-#     "dodgerblue"
-# ], "CMAP1")
 
 CMAP2 = LinearSegmentedColormap.from_list("CMAP2", [
     # "saddlebrown",
@@ -46,8 +33,9 @@ CMAP2 = LinearSegmentedColormap.from_list("CMAP2", [
     "yellow"
 ])
 
-cm.register(cmap=CMAP1)
 cm.register(cmap=CMAP2)
+cm.register(cmap=CMAP3)
+cm.register(cmap=CMAP4)
 
 COLORS_MPL = ["C0", "C1", "C2", "C3", "C4"]
 COLORS_1 = ["red", "blue", "green", "orange", "purple"]
@@ -333,48 +321,68 @@ def plot_fig2(df: pd.DataFrame, vals: np.ndarray, use_stmass: bool=False, show_l
 
 def plot_fig3(df: pd.DataFrame):
 
-    fig, ax = plt.subplots(figsize=(8,8))
+    # fig, (ax, ax_lin) = plt.subplots(nrows=2, ncols=1, figsize=(8,8), sharex=True)
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,8))
     ax: plt.Axes
+    divider = make_axes_locatable(ax)
+    ax_lin: plt.Axes= divider.append_axes("top", size=5.0, pad=0.0, sharex=ax)
 
+    # ABSCISSA
     x = df["pl-orbsmax"]
     x_lo, x_hi = (np.min(x) * 0.9, np.max(x) / 0.9)
-    ax.set_xlabel(r"a (AU)", fontsize=18)
-    ax.set_xscale("log")
-    ax.set_xlim((x_lo, x_hi))
+    # ax.set_xlabel(r"a (AU)", fontsize=18)
+    # ax.set_xscale("log")
+    # ax.set_xlim((x_lo, x_hi))
+    # ax_lin.set_xscale("log")
+    # ax_lin.set_xlim((x_lo, x_hi))
 
-    # y = -2.5 * df["st-lum"] + 5 * np.log10(df["sy-dist"]) + 5
-    y = np.power(10, df["st-lum"])*np.power(df["sy-dist"]*206264, -2)
-    # y = -2.5 * df["st-lum"] + 71.197425
-    # y *= np.power(206264.8, -2)
-    # y *= 3.828e26 * np.power(3.0857e16, -2)
-    # y *= 1/1368
-    y_lo, y_hi = (np.min(y) * 0.9, np.max(y) / 0.9)
-    # ax.set_ylabel(r"$\mathcal{F}= \frac{\mathcal{L}}{4 \pi d^2}$ ($\mathcal{L}_\odot$ pc$^{-2}$)", fontsize=18)
-    ax.set_ylabel(r"$\mathcal{F}= \frac{\mathcal{L}}{4 \pi d^2}$ ($W\cdot m^{-2}$)", fontsize=18)
-    # ax.set_ylabel(r"$\mathcal{F}= \frac{\mathcal{L}}{4 \pi d^2}$ (scaled to the Sun)", fontsize=18)
+
+    # ORDINATE
+    # y = np.power(10, df["st-lum"])*np.power(df["sy-dist"]*206264, -2)
+    y = df["st-age"]
+    # y = df["sy-dist"]
+    # y_lo, y_hi = (np.min(y) * 0.9, np.max(y) / 0.9)
+    y_hi = 15
+    y_lo = np.min(y)
+    y_im = 1
+    fig.supylabel(r"$\mathcal{F}= \frac{\mathcal{L}}{4 \pi d^2}$ (scaled to the Sun)", fontsize=18)
     ax.set_yscale("log")
     ax.set_ylim((y_lo,y_hi))
+    ax.spines["top"].set_visible(False)
+    ax.xaxis.set_ticks_position("bottom")
     
-    z = df["st-spectype-col"].astype("Int64")
-    cmap = cm.get_cmap("CMAP1")
+    ax.set_yscale('log')
+    ax.set_ylim((y_lo, y_im))
+    ax_lin.spines["bottom"].set_visible(False)
+    ax_lin.xaxis.set_ticks_position("top")
+    plt.setp(ax_lin.get_xticklabels(), visible=False)
+    ax_lin.set_xscale('linear')
+    ax_lin.set_ylim((y_im, y_hi))
 
+
+    # SIZE
     dots = np.log(df["pl-bmassj"])
     s_shift = 10
     s_scale = 140
     s = _normalized_range(dots, dots, shift=s_shift, scale=s_scale)
 
-    ax.tick_params(labelsize=16, size=5)
+
+    # COLOR
+    z = df["st-spectype-col"].astype("Int64")
+    cmap = cm.get_cmap("CMAP3")
+    ax.tick_params(labelsize=14, size=5)
+    ax_lin.tick_params(labelsize=14, size=5)
     im = ax.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2, vmin=0, vmax=len(SPECTYPE_STRS)-1)
+    ax_lin.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2, vmin=0, vmax=len(SPECTYPE_STRS)-1)
     cb = fig.colorbar(im, ax=ax)
     cb.set_label(r"Spectral Type", fontsize=18)
     cb_ax = cb.ax
     # cb_ax.tick_params(labelsize=16)
     cb_ax.yaxis.set_ticks([])
     for i, st in enumerate(SPECTYPE_STRS):
-        cb_ax.text(0.5, (i + 0.5) * (len(SPECTYPE_STRS) - 1) / len(SPECTYPE_STRS), st, ha="center", va="center")
+        cb_ax.text(0.5, (i + 0.5) * (len(SPECTYPE_STRS) - 1) / len(SPECTYPE_STRS), st, ha="center", va="center", fontsize=14)
     cb_ax.yaxis.labelpad = 25
     cb_ax.set_ylabel("Host Star Spectral Type", rotation=270)
-    # ax.set_title("Hot Jupiters")
 
     plmvals = np.log([95.2/317.8, 1.])
     plmlabels = [r"Saturn (0.30M$_J$)", r"Jupiter (318M$_J$)"]
@@ -386,12 +394,15 @@ def plot_fig3(df: pd.DataFrame):
         for plmlabel, plmval in zip(plmlabels, plmvals)
     ]
 
+    ax.set_xscale("log")
+    ax.set_xlim((x_lo, x_hi))
+    ax_lin.set_xscale("log")
+    ax_lin.set_xlim((x_lo, x_hi))
+
     fig.tight_layout()
-    ax.legend(handles=size_handles, title=r"Planet Mass ($M_J$)", loc=(0.62,0.01), title_fontsize=13, fontsize=11)
-    fig.savefig("imgs/hotjup_dist.png")
+    ax_lin.legend(handles=size_handles, title=r"Planet Mass ($M_J$)", loc=(0.655,0.8), title_fontsize=13, fontsize=11)
+    fig.savefig("imgs/hotjup_spectype.png")
     plt.show()
-
-
 
 
 if __name__ == "__main__":

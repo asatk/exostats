@@ -158,20 +158,13 @@ def plot_fig1(df: pd.DataFrame):
     
     x = df["pl-orbsmax"]
     x_lo, x_hi = (np.min(x) * 0.9, np.max(x) / 0.9)
-    ax.set_xlabel(r"a (AU)", fontsize=18)
+    ax.set_xlabel("a (au)", fontsize=18)
     ax.set_xscale("log")
     ax.set_xlim((x_lo, x_hi))
 
-    # y = -2.5 * df["st-lum"] + 5 * np.log10(df["sy-dist"]) + 5
-    y = np.power(10, df["st-lum"])/np.square(df["sy-dist"]/4/np.pi)
-    # y = -2.5 * df["st-lum"] + 71.197425
-    # y *= np.power(206264.8, -2)
-    y *= 3.828e26 * np.power(3.0857e16, -2)
-    # y *= 1/1368
+    y = df["sy-dist"]
     y_lo, y_hi = (np.min(y) * 0.9, np.max(y) / 0.9)
-    # ax.set_ylabel(r"$\mathcal{F}= \frac{\mathcal{L}}{4 \pi d^2}$ ($\mathcal{L}_\odot$ pc$^{-2}$)", fontsize=18)
-    ax.set_ylabel(r"$\mathcal{F}= \frac{\mathcal{L}}{4 \pi d^2}$ ($W\cdot m^{-2}$)", fontsize=18)
-    # ax.set_ylabel(r"$\mathcal{F}= \frac{\mathcal{L}}{4 \pi d^2}$ (scaled to the Sun)", fontsize=18)
+    ax.set_ylabel("d (pc)", fontsize=18)
     ax.set_yscale("log")
     ax.set_ylim((y_lo,y_hi))
     
@@ -184,11 +177,11 @@ def plot_fig1(df: pd.DataFrame):
     s = _normalized_range(dots, dots, shift=s_shift, scale=s_scale)
 
     ax.tick_params(labelsize=16, size=5)
-    im = ax.scatter(x, y, c=z, marker="o", s=s, cmap=cmap, zorder=2)
+    im = ax.scatter(x, y, c=z, marker="o", s=s, cmap=cmap, zorder=2, edgecolor="black")
     cb = fig.colorbar(im, ax=ax)
-    cb.set_label(r"Stellar Age (Gyr)", fontsize=18)
+    cb.ax.yaxis.labelpad = 20
+    cb.set_label(r"Stellar Age (Gyr)", rotation=270, fontsize=18)
     cb.ax.tick_params(labelsize=16)
-    ax.set_title("Hot Jupiters")
 
     plmvals = np.log([95.2/317.8, 1.])
     plmlabels = [r"Saturn (0.30M$_J$)", r"Jupiter (318M$_J$)"]
@@ -201,8 +194,25 @@ def plot_fig1(df: pd.DataFrame):
     ]
 
     fig.tight_layout()
-    ax.legend(handles=size_handles, title=r"Planet Mass ($M_J$)", loc=(0.62,0.01), title_fontsize=13, fontsize=11)
-    fig.savefig("imgs/hotjup_dist.png")
+    
+
+    count = np.sum(1 - np.sum(np.isnan(np.stack((x,y,s,z), axis=1)), axis=1))
+    size_handles.insert(0,
+        ax.scatter([], [],
+                   color="white",
+                   edgecolor="black",
+                   s=_normalized_range(np.median(dots), dots, shift=s_shift, scale=s_scale),
+                   label=rf"Hot Jupiters: {count} ($0.25-13 M_{{J}}$)"))
+
+    ax.legend(handles=size_handles,
+                  title=r"Planet Mass ($M_J$)",
+                  loc=(0.51,0.845),
+                  title_fontsize=13,
+                  fontsize=10,
+                  labelspacing=0.25)
+
+
+    fig.savefig("imgs/hotjup_age.png")
     plt.show()
 
 
@@ -669,24 +679,24 @@ if __name__ == "__main__":
     df_hj = df[criteria].reset_index()
 
     # master plots
-    # plot_fig1(df_hj)
+    plot_fig1(df_hj)
     
-    title = r"d (pc)"
-    plot_teff(df_hj, "sy-dist", title, "log", "hotjup_teff_dist")
-    title = r"$\mathcal{L}$ ($\mathcal{L}_\odot$)"
-    plot_teff(df_hj, np.power(10, df_hj["st-lum"]), title, "log", "hotjup_teff_lum")
-    title = r"$\mathcal{F}=\frac{\mathcal{L}}{4 \pi d^2}$ ($\mathcal{L}_\odot$ au$^{-2}$)"
-    plot_teff(df_hj, np.power(10, df_hj["st-flux"]), title, "log", "hotjup_teff_flux")
-    plot_teff_age(df_hj)
+    # title = r"d (pc)"
+    # plot_teff(df_hj, "sy-dist", title, "log", "hotjup_teff_dist")
+    # title = r"$\mathcal{L}$ ($\mathcal{L}_\odot$)"
+    # plot_teff(df_hj, np.power(10, df_hj["st-lum"]), title, "log", "hotjup_teff_lum")
+    # title = r"$\mathcal{F}=\frac{\mathcal{L}}{4 \pi d^2}$ ($\mathcal{L}_\odot$ au$^{-2}$)"
+    # plot_teff(df_hj, np.power(10, df_hj["st-flux"]), title, "log", "hotjup_teff_flux")
+    # plot_teff_age(df_hj)
 
 
-    title = r"d (pc)"
-    plot_spec(df_hj, "sy-dist", title, "log", "hotjup_spectype_dist")
-    title = r"$\mathcal{L}$ ($\mathcal{L}_\odot$)"
-    plot_spec(df_hj, np.power(10, df_hj["st-lum"]), title, "log", "hotjup_spectype_lum")
-    title = r"$\mathcal{F}=\frac{\mathcal{L}}{4 \pi d^2}$ ($\mathcal{L}_\odot$ au$^{-2}$)"
-    plot_spec(df_hj, np.power(10, df_hj["st-flux"]), title, "log", "hotjup_spectype_flux")
-    plot_spec_age(df_hj)
+    # title = r"d (pc)"
+    # plot_spec(df_hj, "sy-dist", title, "log", "hotjup_spectype_dist")
+    # title = r"$\mathcal{L}$ ($\mathcal{L}_\odot$)"
+    # plot_spec(df_hj, np.power(10, df_hj["st-lum"]), title, "log", "hotjup_spectype_lum")
+    # title = r"$\mathcal{F}=\frac{\mathcal{L}}{4 \pi d^2}$ ($\mathcal{L}_\odot$ au$^{-2}$)"
+    # plot_spec(df_hj, np.power(10, df_hj["st-flux"]), title, "log", "hotjup_spectype_flux")
+    # plot_spec_age(df_hj)
     
 
     # mvals = np.array([0.08 + 1e-5, np.mean(df_hj["st-mass"]), 1.36 - 1e-5])

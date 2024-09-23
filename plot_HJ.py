@@ -23,13 +23,16 @@ CMAP3 = ListedColormap([
     "orange",
     "yellow",
     "lightyellow",
+    "lightcyan",
+    "paleturquoise",
+    # "turquoise"
 ], "CMAP3")
 CMAP4 = LinearSegmentedColormap.from_list("CMAP4", [
     "firebrick",
     "orange",
     "yellow",
-    "lightyellow",
-])
+    "lightyellow"
+]).with_extremes(under="darkred", over="lightcyan")
 
 cm.register(cmap=CMAP2)
 cm.register(cmap=CMAP3)
@@ -99,8 +102,15 @@ def add_solar_system_planets(df: pd.DataFrame) -> pd.DataFrame:
 def _normalized_range(data: np.array, data_range: np.array, shift: float=0., scale: float=1.):
     return shift + scale * (data - np.amin(data_range)) / (np.amax(data_range) - np.amin(data_range))
 
-SPECTYPE_STRS = ["M", "K", "G", "F"]
-# SPECTYPE_STRS = ["M", "K", "G", "F", "A", "B", "O"]
+SPECTYPE_STRS = [
+    "M",
+    "K",
+    "G",
+    "F",
+    "A",
+    "B",
+    # "O"
+]
 SPECTYPE_INDS = {k: v for v, k in enumerate(SPECTYPE_STRS)}
 SPECTYPE_VALS = {k: v*10 for v, k in enumerate(SPECTYPE_STRS)}
 
@@ -152,9 +162,49 @@ def _parse_spectype(spectype: pd.Series):
     return df
 
 
+def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
+    
+    df = nasa_exo
+    err_calc = lambda e1, e2: np.max([err1, np.fabs(err2)], axis=0)
+
+    params = {}
+    p = re.compile("(.+)err(1|2)$")
+    for col in nasa_exo.columns:
+        # find parameter name that ends with err1 or err2 and extract the prefix
+        match = p.match(col)
+        if match is None:
+            continue
+        param = match.group(1)
+        params[param] = params.get(param, 0) + 1
+        
+        # Only calculate error if only two error parameters are available in table
+        if params[param] == 2:
+            err1 = df[param + "err1"]
+            err2 = df[param + "err2"]
+            df["e_" + param] = err_calc(err1, err2)
+    
+    return nasa_exo
+
+
+def _underscore_to_dash(df: pd.DataFrame):
+
+    params = {}
+    p = re.compile("^(?!e_).+")
+    for col in df.columns:
+        match = p.match(col)
+        if match is None:
+            continue
+        s = match.group()
+        params[s] = s.replace("_", "-")
+
+    return df.rename(columns=params)
+
+
 def plot_fig1(df: pd.DataFrame):
     fig, ax = plt.subplots(figsize=(8,8))
     ax: plt.Axes
+
+    df = df.sort_values("st-age", inplace=False, ascending=False)
     
     x = df["pl-orbsmax"]
     x_lo, x_hi = (np.min(x) * 0.9, np.max(x) / 0.9)
@@ -196,23 +246,23 @@ def plot_fig1(df: pd.DataFrame):
     fig.tight_layout()
     
 
-    count = np.sum(1 - np.sum(np.isnan(np.stack((x,y,s,z), axis=1)), axis=1))
+    count = np.sum(np.all(np.bitwise_not(np.isnan(np.stack((x, y, s, z)))), axis=0))
     size_handles.insert(0,
         ax.scatter([], [],
                    color="white",
                    edgecolor="black",
                    s=_normalized_range(np.median(dots), dots, shift=s_shift, scale=s_scale),
-                   label=rf"Hot Jupiters: {count} ($0.25-13 M_{{J}}$)"))
+                   label=rf"Gas Giants ($0.25-13 M_{{J}}$): {count}"))
 
     ax.legend(handles=size_handles,
                   title=r"Planet Mass ($M_J$)",
-                  loc=(0.51,0.845),
+                  loc=1,
                   title_fontsize=13,
                   fontsize=10,
                   labelspacing=0.25)
 
 
-    fig.savefig("imgs/hotjup_age.png")
+    fig.savefig("imgs/NEA-hotjup_age.png")
     plt.show()
 
 
@@ -321,7 +371,7 @@ def plot_fig2(df: pd.DataFrame, vals: np.ndarray, use_stmass: bool=False, show_l
                               fontsize=11)
     ax.add_artist(legend_lines)
     ax.legend(handles=size_handles, title=r"Planet Mass ($M_J$)", loc=(0.62,0.01), title_fontsize=13, fontsize=11)
-    fig.savefig("imgs/hotjup_mass_all.png" if use_stmass else "imgs/hotjup_color_all.png")
+    fig.savefig("imgs/NEA-hotjup_mass_all.png" if use_stmass else "imgs/NEA-hotjup_color_all.png")
     plt.show()
 
 
@@ -361,8 +411,8 @@ def plot_teff(df: pd.DataFrame, col: pd.Series|str, title: str, yscale: str, img
     z = df["st-teff"]
     cmap = cm.get_cmap("CMAP4")
     ax.tick_params(labelsize=14, size=5)
-    im = ax.scatter(x, y, c=z, cmap=cmap, marker="o", edgecolors="black", s=s, zorder=2)
-    cb = fig.colorbar(im, ax=ax)
+    im = ax.scatter(x, y, c=z, cmap=cmap, marker="o", edgecolors="black", s=s, zorder=2, vmin=3000., vmax=7000.)
+    cb = fig.colorbar(im, ax=ax, extend="both")
     cb_ax = cb.ax
     cb_ax.tick_params(labelsize=16)
     cb_ax.yaxis.labelpad = 25
@@ -378,23 +428,23 @@ def plot_teff(df: pd.DataFrame, col: pd.Series|str, title: str, yscale: str, img
             label=plmlabel)
         for plmlabel, plmval in zip(plmlabels, plmvals)]
 
-    count = np.sum(1 - np.sum(np.isnan(np.stack((x,y,s,z), axis=1)), axis=1))
+    count = np.sum(np.all(np.bitwise_not(np.isnan(np.stack((x, y, s, z)))), axis=0))
     size_handles.insert(0,
         ax.scatter([], [],
                    color="white",
                    edgecolor="black",
                    s=_normalized_range(np.median(dots), dots, shift=s_shift, scale=s_scale),
-                   label=rf"Hot Jupiters: {count} ($0.25-13 M_{{J}}$)"))
+                   label=rf"Gas Giants ($0.25-13 M_{{J}}$): {count}"))
 
     ax.legend(handles=size_handles,
                   title=r"Planet Mass ($M_J$)",
-                  loc=(0.45,0.845),
+                  loc=1,
                   title_fontsize=13,
                   fontsize=10,
                   labelspacing=0.25)
     
     fig.tight_layout()
-    fig.savefig(f"imgs/{imgname}.png")
+    fig.savefig(f"imgs/NEA-{imgname}.png")
     plt.show()
 
 
@@ -453,9 +503,9 @@ def plot_teff_age(df: pd.DataFrame):
     cmap = cm.get_cmap("CMAP4")
     ax.tick_params(labelsize=14, size=5)
     ax_lin.tick_params(labelsize=14, size=5)
-    im = ax.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2)
-    ax_lin.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2)
-    cb = fig.colorbar(im, ax=ax)
+    im = ax.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2, vmin=3000., vmax=7000.)
+    ax_lin.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2, vmin=3000., vmax=7000.)
+    cb = fig.colorbar(im, ax=ax, extend="both")
     cb_ax = cb.ax
     cb_ax.tick_params(labelsize=16)
     cb_ax.yaxis.labelpad = 25
@@ -471,22 +521,22 @@ def plot_teff_age(df: pd.DataFrame):
         for plmlabel, plmval in zip(plmlabels, plmvals)
     ]
 
-    count = np.sum(1 - np.sum(np.isnan(np.stack((x,y,s,z), axis=1)), axis=1))
+    count = np.sum(np.all(np.bitwise_not(np.isnan(np.stack((x, y, s, z)))), axis=0))
     size_handles.insert(0,
         ax.scatter([], [],
                    color="white",
                    edgecolor="black",
                    s=_normalized_range(np.median(dots), dots, shift=s_shift, scale=s_scale),
-                   label=rf"Hot Jupiter: {count} ($0.25-13 M_{{J}}$)"))
+                   label=rf"Gas Giants ($0.25-13 M_{{J}}$): {count}"))
 
     fig.tight_layout()
     ax_lin.legend(handles=size_handles,
                   title=r"Planet Mass ($M_J$)",
-                  loc=(0.485,0.78),
+                  loc=1,
                   title_fontsize=13,
                   fontsize=10,
                   labelspacing=0.25)
-    fig.savefig("imgs/hotjup_teff_age.png")
+    fig.savefig("imgs/NEA-hotjup_teff_age.png")
     plt.show()
 
 
@@ -528,13 +578,13 @@ def plot_spec(df: pd.DataFrame, col: pd.Series|str, title: str, yscale: str, img
     cmap = cm.get_cmap("CMAP3")
     ax.tick_params(labelsize=14, size=5)
     im = ax.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2)
-    cb = fig.colorbar(im, ax=ax)
+    cb = fig.colorbar(im, ax=ax, aspect=13)
     cb_ax = cb.ax
     cb_ax.yaxis.set_ticks([])
     for i, st in enumerate(SPECTYPE_STRS):
-        cb_ax.text(0.5, (i + 0.5) * (len(SPECTYPE_STRS) - 1) / len(SPECTYPE_STRS), st, ha="center", va="center", fontsize=14)
+        ct = np.sum(np.all(np.bitwise_not(np.isnan(np.stack((x, y, s, z)))), axis=0) & (df["st-spectype-ltr"] == st))
+        cb_ax.text(0.5, (i + 0.5) * (len(SPECTYPE_STRS) - 1) / len(SPECTYPE_STRS), f"{st}\n({ct})", ha="center", va="center", fontsize=12)
     cb_ax.yaxis.labelpad = 25
-    cb_ax.set_ylabel("Spectral Type", rotation=270, fontsize=18)
 
     plmvals = np.log([95.2/317.8, 1.])
     plmlabels = [r"Saturn (0.30 M$_J$)", r"Jupiter (1 M$_J$)"]
@@ -545,23 +595,23 @@ def plot_spec(df: pd.DataFrame, col: pd.Series|str, title: str, yscale: str, img
             label=plmlabel)
         for plmlabel, plmval in zip(plmlabels, plmvals)]
 
-    count = np.sum(1 - np.sum(np.isnan(np.stack((x,y,s,z), axis=1)), axis=1))
+    count = np.sum(np.all(np.bitwise_not(np.isnan(np.stack((x, y, s, z)))), axis=0))
     size_handles.insert(0,
         ax.scatter([], [],
                    color="white",
                    edgecolor="black",
                    s=_normalized_range(np.median(dots), dots, shift=s_shift, scale=s_scale),
-                   label=rf"Hot Jupiters: {count} ($0.25-13 M_{{J}}$)"))
+                   label=rf"Gas Giants ($0.25-13 M_{{J}}$): {count}"))
 
     ax.legend(handles=size_handles,
               title=r"Planet Mass ($M_J$)",
-              loc=(0.475,0.845),
+              loc=1,
               title_fontsize=13,
               fontsize=10,
               labelspacing=0.25)
     
     fig.tight_layout()
-    fig.savefig(f"imgs/{imgname}.png")
+    fig.savefig(f"imgs/NEA-{imgname}.png")
     plt.show()
 
 
@@ -619,13 +669,14 @@ def plot_spec_age(df: pd.DataFrame):
     cmap = cm.get_cmap("CMAP3")
     ax.tick_params(labelsize=14, size=5)
     ax_lin.tick_params(labelsize=14, size=5)
-    im = ax.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2, vmin=0, vmax=len(SPECTYPE_STRS)-1)
-    ax_lin.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2, vmin=0, vmax=len(SPECTYPE_STRS)-1)
-    cb = fig.colorbar(im, ax=ax)
+    im = ax.scatter(x, y, c=z, cmap=cmap, marker="o", edgecolors="black", s=s, zorder=2, vmin=0, vmax=len(SPECTYPE_STRS)-1)
+    ax_lin.scatter(x, y, c=z, cmap=cmap, marker="o", edgecolors="black", s=s, zorder=2, vmin=0, vmax=len(SPECTYPE_STRS)-1)
+    cb = fig.colorbar(im, ax=ax, aspect=13)
     cb_ax = cb.ax
     cb_ax.yaxis.set_ticks([])
     for i, st in enumerate(SPECTYPE_STRS):
-        cb_ax.text(0.5, (i + 0.5) * (len(SPECTYPE_STRS) - 1) / len(SPECTYPE_STRS), st, ha="center", va="center", fontsize=14)
+        ct = np.sum(np.all(np.bitwise_not(np.isnan(np.stack((x, y, s, z)))), axis=0) & (df["st-spectype-ltr"] == st))
+        cb_ax.text(0.5, (i + 0.5) * (len(SPECTYPE_STRS) - 1) / len(SPECTYPE_STRS), f"{st}\n({ct})", ha="center", va="center", fontsize=12)
     cb_ax.yaxis.labelpad = 25
     cb_ax.set_ylabel("Spectral Type", rotation=270, fontsize=18)
 
@@ -638,23 +689,23 @@ def plot_spec_age(df: pd.DataFrame):
             label=plmlabel)
         for plmlabel, plmval in zip(plmlabels, plmvals)]
     
-    count = np.sum(1 - np.sum(np.isnan(np.stack((x,y,s,z), axis=1)), axis=1))
+    count = np.sum(np.all(np.bitwise_not(np.isnan(np.stack((x, y, s, z)))), axis=0))
     size_handles.insert(0,
         ax.scatter([], [],
                    color="white",
                    edgecolor="black",
                    s=_normalized_range(np.median(dots), dots, shift=s_shift, scale=s_scale),
-                   label=rf"Hot Jupiter: {count} ($0.25-13 M_{{J}}$)"))
+                   label=rf"Gas Giants ($0.25-13 M_{{J}}$): {count}"))
 
     ax_lin.legend(handles=size_handles,
                   title=r"Planet Mass ($M_J$)",
-                  loc=(0.51,0.78),
+                  loc=1,
                   title_fontsize=13,
                   fontsize=10,
                   labelspacing=0.25)
     
     fig.tight_layout()
-    fig.savefig("imgs/hotjup_spectype_age.png")
+    fig.savefig("imgs/NEA-hotjup_spectype_age.png")
     plt.show()
 
 
@@ -663,7 +714,10 @@ if __name__ == "__main__":
     add_solar: bool=False
 
     # Load planet habitability and plotting data
-    df = pd.read_csv('tables-merged/alfven_data.csv')
+    # df = pd.read_csv('tables-merged/alfven_data.csv')
+    df = pd.read_csv("tables-merged/nasa_exo.csv")
+    df = measured_uncertainties(df)
+    df = _underscore_to_dash(df)
     
     if add_solar:
         df = add_solar_system_planets(df)
@@ -679,7 +733,7 @@ if __name__ == "__main__":
     df_hj = df[criteria].reset_index()
 
     # master plots
-    plot_fig1(df_hj)
+    # plot_fig1(df_hj)
     
     # title = r"d (pc)"
     # plot_teff(df_hj, "sy-dist", title, "log", "hotjup_teff_dist")
@@ -703,4 +757,32 @@ if __name__ == "__main__":
     # vkvals = np.array([1.1 + 1e-5, np.mean(df_hj["VK-color"]), 7.0 - 1e-5])
     # vals = vkvals
     # plot_fig2(df_hj, vals, use_stmass=False, show_lines=None)
+
+    # df_hj.drop(columns=[
+    #     "level_0",
+    #     "index",
+    #     "st-spectype_1",
+    #     "st-spectype-col",
+    #     "e_pl_rade.1",
+    #     "e_pl_rade.2",
+    #     "e_pl_rade.3"
+    # ], inplace=True)
+    # df_hj.to_csv("tables-merged/hotjup_data.csv")
+    
+
+    df_hj.drop(columns=[
+        "index",
+        "pl-orbsmax.1",
+        "pl-rade.1",
+        "pl-radj.1",
+        "pl-orbeccen.1",
+        "st-teff.1",
+        "st-rad.1",
+        "st-mass.1",
+        "st-vsin.1",
+        "st-rotp.1",
+        "st-spectype_1",
+        "st-spectype-col",
+    ], inplace=True)
+    df_hj.to_csv("tables-merged/NEA-hotjup_data.csv")
     

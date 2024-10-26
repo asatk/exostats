@@ -182,7 +182,7 @@ def dlx_farrish(ro, dro):
 def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
     
     df = nasa_exo
-    err_calc = lambda e1, e2: np.max([err1, np.fabs(err2)], axis=0)
+    err_calc = lambda e1, e2: np.max([e1, np.fabs(e2)], axis=0)
 
     params = {}
     p = re.compile("(.+)err(1|2)$")

@@ -115,11 +115,10 @@ def _underscore_to_dash(df: pd.DataFrame):
     return df.rename(columns=params)
 
 
-def plot1(df: pd.DataFrame):
+def plot1(df: pd.DataFrame, filename: str):
     
     fig, ax = plt.subplots(1,1, figsize=(8,8))
     ax: plt.Axes
-
 
     df_grp = df.groupby("st-spectype-col")
 
@@ -130,49 +129,52 @@ def plot1(df: pd.DataFrame):
         x_grp.append(np.log10(grp["pl-orbsmax"]))
         labels.append(f"{SPECTYPE_STRS[int(g)]} ({grp["pl-orbsmax"].count()})")
 
-    # x_grp = [np.log10(df_grp.get_group(g)["pl-orbsmax"]) for g in df_grp.groups.keys()]
-    # labels = [f"{st}" for st in SPECTYPE_STRS]
-
-
-
-    # x = np.log10(df["pl-orbsmax"])
-    
-
-
-    # z = df["st-spectype-col"].astype("Int64")
-    # cmap = cm.get_cmap("CMAP3")
-
-    # ax.tick_params(labelsize=14, size=5)
-    # im = ax.scatter(x, y, c=z, cmap=cmap, marker="o",edgecolors="black", s=s, zorder=2)
-    # cb = fig.colorbar(im, ax=ax, aspect=13)
-    # cb_ax = cb.ax
-    # cb_ax.yaxis.set_ticks([])
-    # for i, st in enumerate(SPECTYPE_STRS):
-    #     ct = np.sum(np.all(np.bitwise_not(np.isnan(np.stack((x, y, s, z)))), axis=0) & (df["st-spectype-ltr"] == st))
-    #     cb_ax.text(0.5, (i + 0.5) * (len(SPECTYPE_STRS) - 1) / len(SPECTYPE_STRS), f"{st}\n({ct})", ha="center", va="center", fontsize=12)
-    # cb_ax.yaxis.labelpad = 25
-    # cb_ax.set_ylabel("Spectral Type", rotation=270, fontsize=18)
-    
-    ax.hist(x_grp, bins=20, histtype="barstacked", edgecolor="black", color=CMAP3.colors, label=labels)
-
+    ax.hist(x_grp, bins=20, range=(-2.5, 4.5), histtype="barstacked", edgecolor="black", color=CMAP3.colors, label=labels)
     ax.set_xlabel(rf"$\log_{{10}}$ a (au)", fontsize=16)
     ax.set_ylabel("Count", fontsize=16)
     ax.set_title("Hot Jupiter distribution in orbital semi-major axis", fontsize=18)
     ax.tick_params(labelsize=14, size=10)
     ax.legend(loc=1)
     plt.show()
+    fig.savefig(filename)
+
+
+def plot2(df: pd.DataFrame, filename: str):
+
+    fig, ax = plt.subplots(1,1, figsize=(8,8))
+    ax: plt.Axes
+
+    df_grp = df.groupby("")
+
+    x_grp = []
+    labels = []
+    for g in df_grp.groups.keys():
+        grp = df_grp.get_group(g)
+        x_grp.append(np.log10(grp["pl-orbsmax"]))
+        labels.append(f"{SPECTYPE_STRS[int(g)]} ({grp["pl-orbsmax"].count()})")
+
+    ax.hist(x_grp, bins=20, range=(-2.5, 4.5), histtype="barstacked", edgecolor="black", color=CMAP3.colors, label=labels)
+    ax.set_xlabel(rf"$\log_{{10}}$ a (au)", fontsize=16)
+    ax.set_ylabel("Count", fontsize=16)
+    ax.set_title("Hot Jupiter distribution in orbital semi-major axis", fontsize=18)
+    ax.tick_params(labelsize=14, size=10)
+    ax.legend(loc=1)
+    plt.show()
+    fig.savefig(filename)
 
 
 if __name__ == "__main__":
 
-    use_NEA: bool=False
+    use_NEA: bool=True
 
     if use_NEA:
         df = pd.read_csv("tables-merged/nasa_exo.csv")
         df = _measured_uncertainties(df)
         df = _underscore_to_dash(df)
+        filename = "./imgs/NEA-hotjup-orbit-hist.png"
     else:
         df = pd.read_csv('tables-merged/alfven_data.csv')
+        filename = "./imgs/hotjup-orbit-hist.png"
 
     df_sp = _parse_spectype(df["st-spectype"])
     df = df.merge(df_sp, how="outer", left_index=True, right_index=True, suffixes=(None, "_1"))
@@ -182,4 +184,4 @@ if __name__ == "__main__":
                (df["pl-bmasse"] / 317.8 < 13)
     df_hj = df[criteria].reset_index()
 
-    plot1(df_hj)
+    plot1(df_hj, filename)

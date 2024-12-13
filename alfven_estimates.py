@@ -34,10 +34,11 @@ def taucVK(VK):
 
 
 def dtaucVK(VK, dVK):
-    return taucVK(VK) * LN10 * np.sqrt(np.power(dAVK, 2.) + 
-                                         np.power(VK * dBVK, 2.) + 
-                                         np.power(BVK, 2.) *
-                                         np.power(dVK, 2.))
+    return taucVK(VK) * LN10 * np.sqrt(
+        np.square(dAVK) + 
+        np.square(VK * dBVK) + 
+        np.square(BVK) *
+        np.square(dVK))
 
 
 def RoVK(Prot, VK):
@@ -45,10 +46,9 @@ def RoVK(Prot, VK):
 
 
 def dRoVK(Prot, VK, dProt, dVK):
-    return RoVK(Prot, VK) * np.sqrt(np.power(dProt / np.fabs(Prot), 2.) +
-                                      np.power(
-                                        dtaucVK(VK, dVK) /
-                                        taucVK(VK), 2.))
+    return RoVK(Prot, VK) * np.sqrt(
+        np.square(dProt / np.fabs(Prot)) +
+        np.square(dtaucVK(VK, dVK) / taucVK(VK)))
 
 
 # wright et al 2018 (eqn 6): valid for range 0.08 < M/Msol < 1.36
@@ -68,10 +68,10 @@ def taucM(M):
 
 def dtaucM(M, dM):
     return taucM(M) * LN10 * np.sqrt(
-        np.power(dAM, 2.) +
-        np.power(M * dBM, 2.) +
-        np.power(np.power(M, 2.) * dCM, 2.) +
-        np.power((2 * M * CM + BM) * dM, 2.))
+        np.square(dAM) +
+        np.square(M * dBM) +
+        np.square(np.power(M, 2.) * dCM) +
+        np.square((2 * M * CM + BM) * dM))
     
 
 def RoM(Prot, M):
@@ -79,8 +79,9 @@ def RoM(Prot, M):
 
 
 def dRoM(Prot, M, dProt, dM):
-    return RoM(Prot, M) * np.sqrt(np.power(dProt / np.fabs(Prot), 2.) + 
-                                  np.power(dtaucM(M, dM) / taucM(M), 2.))
+    return RoM(Prot, M) * np.sqrt(
+        np.square(dProt / np.fabs(Prot)) + 
+        np.square(dtaucM(M, dM) / taucM(M)))
 
 
 def choose_Tauc(TaucVK: pd.Series, TaucM: pd.Series) -> pd.Series:
@@ -163,7 +164,7 @@ def dra_schrijver(ro, dro):
         np.square(s * r * dro / ro) +
         np.square(s * r * dro_sol / ro_sol) +
         np.square(r * np.log(ro / ro_sol) * ds) +
-        np.square((s * np.log(ro / ro_sol)) * dr))
+        np.square(s * np.log(ro / ro_sol) * dr))
 
 p_f21 = -1.74
 dp_f21 = 0.0097

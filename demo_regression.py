@@ -1,3 +1,13 @@
+"""
+demo_regression.py
+
+Demonstration of linear regression on a subset of NASA exoplanet data with
+different regression models.
+
+2025.07.02
+Anthony Atkinson
+"""
+
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -23,6 +33,7 @@ X = np.log10(df_sgl["st_age"].to_numpy().reshape(-1, 1))
 # define response y = log(Prot)
 y = np.log10(np.fabs(df_sgl["st_rotp"].to_numpy()))
 
+# regularization strengths for L1 and L2 penalties in each model
 alpha_ridge = 10.0
 alpha_lasso = 0.01
 alpha_enet = 0.1
@@ -44,11 +55,13 @@ ystar_ridge = reg_ridge.predict(Xstar)
 ystar_lasso = reg_lasso.predict(Xstar)
 ystar_enet = reg_enet.predict(Xstar)
 
+# get power-law coefficient
 p_OLS = reg_OLS.coef_[0]
 p_ridge = reg_ridge.coef_[0]
 p_lasso = reg_lasso.coef_[0]
 p_enet = reg_enet.coef_[0]
 
+# plot data and fits
 fig, ax = plt.subplots(nrows=1, ncols=1)
 ax.scatter(X[:,0], y, color="black", marker="+", label="Single HJ Systems " + \
            f"(N = {len(df_sgl)})")

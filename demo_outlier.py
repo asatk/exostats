@@ -30,6 +30,9 @@ subset = (df["sy_pnum"] > 1) & \
         (0.5 <= df["pl_bmasse"]) & \
         (df["pl_bmasse"] <= 3)
 
+# placeholder to select all data
+# subset = pd.notnull(df["pl_name"])
+
 # predictor variable (X, independent variable) -- stellar effective temperature
 pred = ["st_teff"]
 # response variable -- stellar rotation period
@@ -106,7 +109,7 @@ ax.plot(Xstar[:,0], ystar, ls="-", label=f"OLS (p = {p:.3f})")
 ax.plot(Xstar[:,0], ystar_outlr, ls="-", label=f"OLS -Outliers (p = {p_outlr:.3f})")
 ax.set_xlabel(r"$\log_{10}$ Temperature (K)")
 ax.set_ylabel(r"$\log_{10}$ Rotation Period (d)")
-ax.set_title(r"Removing Outliers in Regression on" + \
-        "\nPlanetary Data")
+ax.set_title(r"Removing Outliers in Regression" + \
+        "\non Planetary Data")
 ax.legend()
 plt.show()

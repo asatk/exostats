@@ -2,12 +2,16 @@ import numpy as np
 import pandas as pd
 import re
 
+########## CONVECTIVE TURNOVER TIME ##########
 
+# Wright et al. 2018 constants for convective turnover time EQ 5
 AVK = 0.64
 dAVK = 0.12
 BVK = 0.25
 dBVK = 0.08
 
+# Wright et al. 2018 constants for convective turnover time EQ 6
+AVK = 0.64
 AM = 2.33
 dAM = 0.06
 BM = -1.50
@@ -17,16 +21,20 @@ dCM = 0.17
 
 LN10 = np.log(10)
 
+##############################################
 
-# wright et al 2018 (eqn 5): valid for range 1.1 < V-K < 7.0
 def taucVK(VK):
+    """
+    Calculate the convective turnover time in days using a star's V-Ks color
+    from EQ 5 from Wright et al. 2018. Valid only for a color between 1.1 and
+    7.0.
+    """
     x = np.power(10., AVK + BVK * VK)
 
     if isinstance(x, pd.Series):
         x.loc[np.fabs(VK - 4.05) > 2.95] = np.nan
         return x
     
-    # VK is guaranteed positive given W18+ relationship domain
     if np.fabs(VK - 4.05) <= 2.95:
         return x
     else:
@@ -34,6 +42,11 @@ def taucVK(VK):
 
 
 def dtaucVK(VK, dVK):
+    """
+    Calculates the uncertainty in the convective turnover time from Wright et al.
+    2018 EQ 5 using color and color uncertainty. Error propagation assumes
+    symmetric normal errors.
+    """
     return taucVK(VK) * LN10 * np.sqrt(
         np.square(dAVK) + 
         np.square(VK * dBVK) + 
@@ -42,18 +55,29 @@ def dtaucVK(VK, dVK):
 
 
 def RoVK(Prot, VK):
+    """
+    Calculates the Rossby number given a rotation period and V-Ks color.
+    """
     return np.fabs(Prot) / taucVK(VK)
 
 
 def dRoVK(Prot, VK, dProt, dVK):
+    """
+    Calculates the uncertainty in the Rossby number given a rotation period,
+    V-Ks color, and their respective uncertainties. Error propagation assumes
+    symmetric normal errors.
+    """
     return RoVK(Prot, VK) * np.sqrt(
         np.square(dProt / np.fabs(Prot)) +
         np.square(dtaucVK(VK, dVK) / taucVK(VK)))
 
 
-# wright et al 2018 (eqn 6): valid for range 0.08 < M/Msol < 1.36
-#M in solar masses
 def taucM(M):
+    """
+    Calculates the convective turnover time in days using a star's mass in Solar
+    Masses from EQ 6 from Wright et al. 2018. Valid only for a mass between 0.08
+    and 1.36.
+    """
     x = np.power(10., AM + BM * M + CM * np.power(M, 2.))
 
     if isinstance(x, pd.Series):
@@ -67,6 +91,11 @@ def taucM(M):
 
 
 def dtaucM(M, dM):
+    """
+    Calculates the uncertainty in the convective turnover time from Wright et al.
+    2018 EQ 6 using mass and mass uncertainty. Error propagation assumes
+    symmetric normal errors.
+    """
     return taucM(M) * LN10 * np.sqrt(
         np.square(dAM) +
         np.square(M * dBM) +
@@ -75,16 +104,30 @@ def dtaucM(M, dM):
     
 
 def RoM(Prot, M):
+    """
+    Calculates the Rossby number given a rotation period and stellar mass.
+    """
     return np.fabs(Prot) / taucM(M)
 
 
 def dRoM(Prot, M, dProt, dM):
+    """
+    Calculates the uncertainty in the Rossby number given a rotation period,
+    stellar mass, and their respective uncertainties. Error propagation assumes
+    symmetric normal errors.
+    """
     return RoM(Prot, M) * np.sqrt(
         np.square(dProt / np.fabs(Prot)) + 
         np.square(dtaucM(M, dM) / taucM(M)))
 
 
 def choose_Tauc(TaucVK: pd.Series, TaucM: pd.Series) -> pd.Series:
+    """
+    Choose the value of convective turnover time to report for each star. The
+    current implementation is to default to T calculated using V-Ks color where
+    available; T calculated using stellar mass is reported only when V-Ks data
+    are not available.
+    """
     
     where_rovk_notnull = TaucVK.notnull()
     where_rom_notnull = TaucM.notnull()
@@ -98,6 +141,12 @@ def choose_Tauc(TaucVK: pd.Series, TaucM: pd.Series) -> pd.Series:
 
 def choose_eTauc(TaucVK: pd.Series, TaucM: pd.Series, dTaucVK: pd.Series,
               dTaucM: pd.Series) -> pd.Series:
+    """
+    Choose the value of uncertainty in convective turnover time to report for
+    each star. The current implementation is to default to T calculated using
+    V-Ks color where available; T calculated using stellar mass is reported only
+    when V-Ks data are not available.
+    """
     where_taucvk_notnull = TaucVK.notnull()
     where_taucm_notnull = TaucM.notnull()
     
@@ -109,6 +158,12 @@ def choose_eTauc(TaucVK: pd.Series, TaucM: pd.Series, dTaucVK: pd.Series,
 
 
 def choose_Ro(RoVK: pd.Series, RoM: pd.Series) -> pd.Series:
+    """
+    Choose the value of Rossby number to report for each star. The current
+    implementation is to default to Ro calculated using V-Ks color where
+    available; Ro calculated using stellar mass is reported only when V-Ks data
+    are not available.
+    """
     
     where_rovk_notnull = RoVK.notnull()
     where_rom_notnull = RoM.notnull()
@@ -122,6 +177,13 @@ def choose_Ro(RoVK: pd.Series, RoM: pd.Series) -> pd.Series:
 
 def choose_eRo(RoVK: pd.Series, RoM: pd.Series, dRoVK: pd.Series,
               dRoM: pd.Series) -> pd.Series:
+    """
+    Choose the value of uncertainty in Rossby number to report for each star.
+    The current implementation is to default to Ro calculated using V-Ks color
+    where available; Ro calculated using stellar mass is reported only when V-Ks
+    data are not available.
+    """
+
     where_rovk_notnull = RoVK.notnull()
     where_rom_notnull = RoM.notnull()
     
@@ -132,33 +194,71 @@ def choose_eRo(RoVK: pd.Series, RoM: pd.Series, dRoVK: pd.Series,
     return pd.Series(dRo, name="e_Ro", index=RoVK.index)
 
 
-r_sol = 6.957e8     # meters per solar radius
-au = 1.496e11       # meters per au
-prot_sol = 25.
-ro_sol = 1.85
-dro_sol = 0.26
-ra_sol = 20 * r_sol / au
+########## SOLAR DATA ##########
 
+# Solar radius
+r_sol = 6.957e8     # meters per solar radius
+
+# Astronomical Unit
+au = 1.496e11       # meters per au
+
+# Fiducial Solar rotation period
+prot_sol = 25.
+
+# Solar Rossby Number (ref?)
+ro_sol = 1.85
+
+# Uncertainty in Solar Rossby Number (ref?)
+dro_sol = 0.26
+
+# Solar Alfven Radius (assume 20 Rsol)
+ra_sol = 20 * r_sol / au
 # ra_sol = 0.0451 # 9.7Rsun
 # ra_sol = 0.1383 # 695700km in AU
+
+# Uncertainty in Solar Alfven Radius
 dra_sol = 0.2 * ra_sol  # 20% error (cycle variation)
-# r_sol = 1.
+
+
+# Exponent in power law relating magnetic field strength (flux density) to
+# Rossby Number from Vidotto et al. 2014 last paragraph p. 8
+# Vidotto+ mention this is only valid for unsaturated stars, i.e., Ro > 0.1. We
+# blanket apply this relation to stars of any Rossby number, assuming this
+# relationship extrapolates to stars in the saturated Ro regime.
 s = -1.38
+
+# Uncertainty in exponent in above power law.
 ds = 0.14
+
+# Exponent in power law relating Alfven Radius to Magnetic Flux Density from
+# Schrijver et al. 2003 EQ 13.
 r = -0.16
+
+# Uncertainty in exponent in above power law.
 dr = 0.13
 # r = r - dr
 # r = r + dr
-# all values scaled to solar values at maximum
 
-# using Vidotto et al. 2014 p 6 for B_V
-# get R_A from S03 eqn 13
-# radius scaling (s = -1.38, B)
+################################
+
 def ra_schrijver(ro):
+    """
+    Calculates the Alfven Radius given a Rossby number. This relationship is
+    established by connecting EQ 13 from Schrijver et al. 2003, relating Aflven
+    Radius to stellar magnetic flux density/field strength, and a result from
+    the last paragraph on P8 from Vidotto et al. 2014, relating magnetic field
+    strength and Rossby number. The resulting power law relationship is
+    normalized using Solar values for Rossby number and Alfven radius at Solar
+    maximum.
+    """
     return ra_sol * np.real(np.power(ro / ro_sol, s * r))
 
 
 def dra_schrijver(ro, dro):
+    """
+    Calculates the uncertainty in Alfven Radius given a Rossby number. Error
+    propagation assumes symmetric normal errors.
+    """
     return ra_schrijver(ro) * np.sqrt(
         np.square(dra_sol / ra_sol) +
         np.square(s * r * dro / ro) +
@@ -166,9 +266,13 @@ def dra_schrijver(ro, dro):
         np.square(r * np.log(ro / ro_sol) * ds) +
         np.square(s * np.log(ro / ro_sol) * dr))
 
+########## X-RAY LUMINOSITY ##########
+
 p_f21 = -1.74
 dp_f21 = 0.0097
 c_f21 = 28.4
+
+######################################
 
 def lx_farrish(ro):
     return p_f21 * np.log10(ro / ro_sol) + c_f21
@@ -181,6 +285,15 @@ def dlx_farrish(ro, dro):
 
 
 def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
+    """
+    Determine one value for the measured uncertainty for each measured quantity.
+    Since both a left and right uncertainty are reported for each measurement,
+    and generally are not equal, one must determine a single value for the
+    measurement uncertainty to proceed with standard error propagation. The
+    accepted uncertainty value is determined by the implementation of
+    `err_calc`. The current behavior is to accept the larger of the two
+    uncertainties as the symmetric normal error for the measurement.
+    """
     
     df = nasa_exo
     err_calc = lambda e1, e2: np.max([e1, np.fabs(e2)], axis=0)
@@ -205,6 +318,15 @@ def measured_uncertainties(nasa_exo: pd.DataFrame) -> pd.DataFrame:
 
 
 def estimate_rossby(prot_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculates the Rossby number and its uncertainty for all stars with the
+    requisite data in a data frame. Separate Rossby numbers are determined for
+    each star using V-Ks color and stellar mass where data are available. The
+    choice of reported Rossby number is determined by the implementation of the
+    function `choose_Ro`: the current behavior is to default to Ro calculated
+    using V-Ks color when data are available; if color data are not available,
+    Ro calculated using stellar mass is used.
+    """
     x = prot_data
     prot_data["VK_color"] = \
         prot_data["sy_vmag"] - prot_data["sy_kmag"]

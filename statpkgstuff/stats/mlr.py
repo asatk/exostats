@@ -6,6 +6,19 @@ from typing import Literal, List
 
 from .utils import load
 
+def log(x: pd.Series):
+    name = f"log({x.name})"
+    log_col = pd.Series(np.log(x), name=name)
+    return pd.DataFrame((x, log_col))
+
+def poly(x: pd.Series, n: int=2, name: str="x"):
+    df = pd.DataFrame(x)
+    for i in range(2, n+1):
+        namei = f"{name}^2"
+        xi = pd.Series(np.power(x, i), name=namei)
+        df[namei] = xi
+    return df
+
 
 class LRFit(metaclass=abc.ABCMeta):
 
@@ -41,9 +54,14 @@ class OLSFit(LRFit):
 
 
     def learn(self,
-              x: np.ndarray,
-              y: np.ndarray,
+              x: np.ndarray|pd.DataFrame,
+              y: np.ndarray|pd.Series,
               *args):
+        
+        if isinstance(x, pd.DataFrame):
+            x = x.to_numpy()
+        if isinstance(y, pd.Series):
+            y = y.to_numpy()
 
         if x.shape[0] < x.shape[1]:
             print(f"Problem is underdetermined (n = {x.shape[0]} < {x.shape[1]} = p)")

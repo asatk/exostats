@@ -1,5 +1,5 @@
 from .kmeans import learnkNN, predictLabel
-from .mlr import OLSFit, RidgeFit
+from .mlr import OLSFit, RidgeFit, poly, log
 from .plot import diag_plot
 from .utils import load
 
@@ -9,5 +9,7 @@ __all__ = [
     "OLSFit",
     "RidgeFit",
     "diag_plot",
-    "load"
+    "load",
+    "poly",
+    "log"
 ]

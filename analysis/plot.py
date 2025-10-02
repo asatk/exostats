@@ -36,13 +36,13 @@ SOL_NAMES = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn",
 def make_plot_names_pl(df: pd.DataFrame,
                        named_planets: list[str]=NAMED_PLANETS) -> pd.DataFrame:
     
-    pl_names = pd.Series(named_planets, name="pl_name")
+    pl_names = pd.Series(named_planets, name="pl-name")
 
-    df_fltr = pd.merge(df, pl_names, how="inner", on="pl_name").sort_values(by="ASHC")[["pl_name"]]
-    df_fltr["plot_name"] = np.asarray(df_fltr.groupby("pl_name", sort=False).ngroup() + 1, dtype=str)
-    df_map = df_fltr[["plot_name", "pl_name"]]
+    df_fltr = pd.merge(df, pl_names, how="inner", on="pl-name").sort_values(by="ASHC")[["pl-name"]]
+    df_fltr["plot_name"] = np.asarray(df_fltr.groupby("pl-name", sort=False).ngroup() + 1, dtype=str)
+    df_map = df_fltr[["plot_name", "pl-name"]]
 
-    df_all_plot_name = pd.merge(df, df_map, how="left", on="pl_name")["plot_name"]
+    df_all_plot_name = pd.merge(df, df_map, how="left", on="pl-name")["plot_name"]
     df_all_plot_name.fillna("", inplace=True)
 
     return df_all_plot_name
@@ -63,7 +63,7 @@ def add_solar_system_planets(df: pd.DataFrame, use_names: bool=False) -> pd.Data
     
     sol_data = {
         "hostname": ["Sol", "Sol", "Sol"],
-        "pl_name": ["Venus", "Earth", "Mars"],
+        "pl-name": ["Venus", "Earth", "Mars"],
         "plot_name": ["Venus", "Earth", "Mars"],
         "Prot": [25, 25, 25],
         "Ro": [ro_sol, ro_sol, ro_sol],
@@ -71,9 +71,9 @@ def add_solar_system_planets(df: pd.DataFrame, use_names: bool=False) -> pd.Data
         "rperi": [r_p_venus, r_p_earth, r_p_mars],
         "ASHC": [r_p_venus / ra_sol, r_p_earth / ra_sol, r_p_mars / ra_sol],
         "e_ASHC": [dra_sol, dra_sol, dra_sol],
-        "st_mass": [1., 1., 1.],
-        "VK_color": [vk_color_sol, vk_color_sol, vk_color_sol],
-        "mass_class": [1, 1, 0],
+        "st-mass": [1., 1., 1.],
+        "VK-color": [vk_color_sol, vk_color_sol, vk_color_sol],
+        "mass-class": [1, 1, 0],
         "pl_bmasse": [mass_venus, mass_earth, mass_mars],
         "habitable": [1, 1, 1]
     }
@@ -132,7 +132,7 @@ def _named_text_posn_fig4(df: pd.DataFrame):
     return df
 
 
-def plot_fig1(df: pd.DataFrame, classcol: str="mass_class"):
+def plot_fig1(df: pd.DataFrame, classcol: str="mass-class"):
     
     df = df.copy(deep=False)
     
@@ -143,25 +143,25 @@ def plot_fig1(df: pd.DataFrame, classcol: str="mass_class"):
     ylo = 7.5e-2
     yhi = 100
 
-    # exclude outlier data in ASHC and VK_color
+    # exclude outlier data in ASHC and VK-color
     df.loc[~(
         (df["ASHC"] >= ylo) &
         (df["ASHC"] <= yhi) &
-        (df["VK_color"] >= x2lo) &
-        (df["VK_color"] <= x2hi)),
-        "VK_color"] = np.nan
+        (df["VK-color"] >= x2lo) &
+        (df["VK-color"] <= x2hi)),
+        "VK-color"] = np.nan
     
-    # exclude outlier data in ASHC and st_mass
+    # exclude outlier data in ASHC and st-mass
     df.loc[~(
         (df["ASHC"] >= ylo) &
         (df["ASHC"] <= yhi) &
-        (df["st_mass"] >= x1lo) &
-        (df["st_mass"] <= x1hi)),
-        "st_mass"] = np.nan
+        (df["st-mass"] >= x1lo) &
+        (df["st-mass"] <= x1hi)),
+        "st-mass"] = np.nan
 
     colors = ["red", "green", "mediumorchid", "orange", "black"]
-    grp_counts_sm = df.groupby(by=classcol).count()["st_mass"]
-    grp_counts_vk = df.groupby(by=classcol).count()["VK_color"]
+    grp_counts_sm = df.groupby(by=classcol).count()["st-mass"]
+    grp_counts_vk = df.groupby(by=classcol).count()["VK-color"]
     grp_names = ["subterran", "terran", "superterran", "giant", "no class"]
 
     fig1, ax1 = plt.subplots(nrows=1, ncols=1, figsize=(12,8))
@@ -180,9 +180,9 @@ def plot_fig1(df: pd.DataFrame, classcol: str="mass_class"):
         label_sm = f"{grp_names[grp]} ({grp_counts_sm[grp]})"
         label_vk = f"{grp_names[grp]} ({grp_counts_vk[grp]})"
         
-        ax1.plot(np.array(temp["st_mass"]), np.array(temp["ASHC"]),
+        ax1.plot(np.array(temp["st-mass"]), np.array(temp["ASHC"]),
                  c=colors[grp], linestyle="none", marker="+", fillstyle="none", alpha=alpha_nh, label=label_sm)
-        ax2.plot(np.array(temp["VK_color"]), np.array(temp["ASHC"]),
+        ax2.plot(np.array(temp["VK-color"]), np.array(temp["ASHC"]),
                  c=colors[grp], linestyle="none", marker="+", fillstyle="none", alpha=alpha_nh, label=label_vk)
 
     df_h = df[df["habitable"] == 1].reset_index(inplace=False)
@@ -193,18 +193,18 @@ def plot_fig1(df: pd.DataFrame, classcol: str="mass_class"):
         temp = df_h[df_inv == idx]
 
         # maybes_where = ((temp["ASHC"] - temp["e_ASHC"] < 1) & (temp["ASHC"] > 1)) | ((temp["ASHC"] + temp["e_ASHC"] > 1) & (temp["ASHC"] < 1))
-        maybes_where = (temp["pl_name"] == "TRAPPIST-1 e") | (temp["pl_name"] == "GJ 273 b")
+        maybes_where = (temp["pl-name"] == "TRAPPIST-1 e") | (temp["pl-name"] == "GJ 273 b")
         maybes = temp[maybes_where]
         certain = temp[~maybes_where]
 
-        ax1.plot(np.array(certain["st_mass"]), np.array(certain["ASHC"]),
+        ax1.plot(np.array(certain["st-mass"]), np.array(certain["ASHC"]),
                  c=colors[grp], linestyle="none", marker="o", fillstyle="full")
-        ax2.plot(np.array(certain["VK_color"]), np.array(certain["ASHC"]),
+        ax2.plot(np.array(certain["VK-color"]), np.array(certain["ASHC"]),
                  c=colors[grp], linestyle="none", marker="o", fillstyle="full")
 
-        ax1.plot(np.array(maybes["st_mass"]), np.array(maybes["ASHC"]),
+        ax1.plot(np.array(maybes["st-mass"]), np.array(maybes["ASHC"]),
                  c=colors[grp], linestyle="none", marker="o", fillstyle="none", markeredgecolor=colors[grp])
-        ax2.plot(np.array(maybes["VK_color"]), np.array(maybes["ASHC"]),
+        ax2.plot(np.array(maybes["VK-color"]), np.array(maybes["ASHC"]),
                  c=colors[grp], linestyle="none", marker="o", fillstyle="none", markeredgecolor=colors[grp])
 
     # Legend markers for OHZ
@@ -267,7 +267,7 @@ def plot_fig2(df: pd.DataFrame, show_names: bool=True, use_stmass: bool=False):
 
     x = df["rperi"]
     y = df["Prot"]
-    z = df["st_mass"] if use_stmass else df["VK_color"]
+    z = df["st-mass"] if use_stmass else df["VK-color"]
     s = _normalized_range(dots, dots, shift=s_shift, scale=s_scale)
     
     prot_lo = min(1e0, min(y))
@@ -388,6 +388,6 @@ if __name__ == "__main__":
     df_h = df[df["habitable"] == 1].reset_index()
 
     # master plots
-    plot_fig1(df, classcol="mass_class")
+    plot_fig1(df, classcol="mass-class")
     plot_fig2(df, use_stmass=False)
     plot_fig2(df, use_stmass=True)

@@ -1,38 +1,27 @@
+from astropy import units as u
+from astropy import constants as c
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 
+from funcs import tauc_w18_sm
+from funcs import ra_s03
+from funcs import chz_inner_k14
+from funcs import chz_outer_k14
 
-w18_sm_c0 = 2.33
-w18_sm_c1 = -1.50
-w18_sm_c2 = 0.31
-
-def tauc_w18_sm(mass: np.ndarray):
-
-    mass_np = mass.to_numpy()
-
-    oob = (0.08 > mass_np) | (mass_np > 1.36)
-    mass_np[oob] = np.nan
-
-    log_tauc = w18_sm_c0 + w18_sm_c1 * mass_np + w18_sm_c2 * mass_np ** 2
-
-    return 10. ** log_tauc
-
-r_sun = 6.957e8
-au = 1.496e11
-
-s = -1.38
-r = -0.16
-Ro_sun = 1.85
-ra_sun = 20 * r_sun / au
-
-def ra_s03(Ro: np.ndarray):
-    return ra_sun * np.real(np.power(Ro / Ro_sun, s * r))
 
 koi = pd.read_csv("../db/kepler/koi_master.csv")
 
+# Kopparapu+ 14 CHZ
+stlum = 4 * np.pi * (koi["koi_srad"].to_numpy() * u.R_sun) ** 2 * c.sigma_sb * (koi["koi_steff"].to_numpy() * u.K) ** 4
+stlum = stlum.to(u.L_sun).value
+koi["stlum"] = stlum
+koi["chz_inner"] = chz_inner_k14(koi["koi_steff"], koi["stlum"])
+koi["chz_outer"] = chz_outer_k14(koi["koi_steff"], koi["stlum"])
 
-koi["tauc"] = tauc_w18_sm(koi["koi_smass"])
+
+# Atkinson+ 24 ASHZ
+koi["tauc"] = tauc_w18_sm(koi["koi_smass"].to_numpy())
 koi["Ro"] = koi["Prot"] / koi["tauc"]
 koi["RA"] = ra_s03(koi["Ro"])
 koi["rp"] = koi["koi_sma"] * (1 - koi["koi_eccen"])

@@ -1,10 +1,9 @@
 """
 demo_cluster.py
 
-Demonstration of clustering on a subset of NASA exoplanet data with different
-clustering techniques.
+Demonstration of 3-dimensional clustering on NASA exoplanet data.
 
-2025.08.29
+2025.11.05
 Anthony Atkinson
 """
 

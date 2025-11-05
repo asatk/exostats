@@ -19,13 +19,6 @@ seed = 0x2025
 fname = "../db/nea/ps.csv"
 df = pd.read_csv(fname)
 
-# remove 0s in columns where you do not want zeros (useful when taking logs)
-nz_cols = ["st_age"]
-df[nz_cols] = df[nz_cols].replace([0.0], np.nan)
-
-# placeholder to select all data
-# subset = pd.notnull(df["pl_name"])
-
 # log-transform data spread over many magnitudes to more managable numbers
 logcols = ["pl_orbsmax", "pl_bmasse", "st_mass"]
 df[logcols] = np.log10(df[logcols])

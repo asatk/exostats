@@ -12,45 +12,9 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans, SpectralClustering, DBSCAN, MeanShift
 
-# seed for random processes (e.g., initialization of clustering algorithms)
-seed = 0x2025
-
-# path to your data here
-fname = "../db/nea/ps.csv"
-df = pd.read_csv(fname)
-
-# log-transform data spread over many magnitudes to more managable numbers
-logcols = ["pl_orbsmax", "pl_bmasse", "st_mass"]
-df[logcols] = np.log10(df[logcols])
-
-# columns of relevant parameters for clustering -- can have as many columns are there are in the data set
-cols = ["pl_orbsmax", "pl_bmasse", "st_mass"]
-# dataframe of planet masses and orbits
-df_sub = df.loc[:, cols].dropna()
-
-# unlabeled data to be cluster
-X = df_sub.to_numpy()
-
-# guess for number of clusters -- some methods must stick to that number
-nc = 4
-
-# clustering model specifications
-model = SpectralClustering(
-        n_clusters=nc,
-        affinity="rbf",
-        assign_labels="discretize",
-        random_state=seed)
-
-# cluster data
-model = model
-clustering = model.fit(X)
-
-# identify each datum's label
-labels = clustering.labels_
-labels_u = np.unique(labels)
-
-
-def plot_clusters_3d(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray,
+# cluster plotting function!
+def plot_clusters_3d(labels_u: np.ndarray,
+                     x1: np.ndarray, x2: np.ndarray, x3: np.ndarray,
                      title: str=None, label_1: str=None, label_2: str=None,
                      marker_min: int=5, marker_max: int=25, marker_alpha: float=0.1):
     """
@@ -58,6 +22,9 @@ def plot_clusters_3d(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray,
     The first two dimensions are typical x and y; the "third" dimension is
     size of the plot marker. Typically useful when one of the variables 
     meausures a "size" of some sort.
+
+    labels_u : np.ndarray
+        list of unique labels/clusters the data have been grouped into
 
     x1 : np.ndarray
         first dimension of data (x)
@@ -108,16 +75,56 @@ def plot_clusters_3d(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray,
     fig.tight_layout()
     plt.show()
 
+
+
+# seed for random processes (e.g., initialization of clustering algorithms)
+seed = 0x2025
+
+# path to your data here
+fname = "../db/nea/ps.csv"
+df = pd.read_csv(fname)
+
+# log-transform data spread over many magnitudes to more managable numbers
+logcols = ["pl_orbsmax", "pl_bmasse", "st_mass"]
+df[logcols] = np.log10(df[logcols])
+
+# columns of relevant parameters for clustering -- can have as many columns are there are in the data set
+cols = ["pl_orbsmax", "pl_bmasse", "st_mass"]
+# dataframe of planet masses and orbits
+df_sub = df.loc[:, cols].dropna()
+
+# unlabeled data to be cluster
+X = df_sub.to_numpy()
+
+# guess for number of clusters -- some methods must stick to that number
+nc = 4
+
+# clustering model specifications
+model = SpectralClustering(
+        n_clusters=nc,
+        affinity="rbf",
+        assign_labels="discretize",
+        random_state=seed)
+
+# cluster data
+model = model
+clustering = model.fit(X)
+
+# identify each datum's label
+labels = clustering.labels_
+labels_u = np.unique(labels)
+
+# plot titles/labels
 title = r"Spectral Clustering of Planets by orbit, M$_{pl}$, and M$_*$"
 label_1 = r"$\log_{10}$ Semi-major Axis (au)"
 label_2 = r"Planetary Mass (M$_\oplus$)"
 label_3 = r"Stellar Mass (M$_\odot$)"
 
 # orbit vs. planet mass
-plot_clusters_3d(X[:,0], X[:,1], X[:,2], title=title, label_1=label_1, label_2=label_2)
+plot_clusters_3d(labels_u, X[:,0], X[:,1], X[:,2], title=title, label_1=label_1, label_2=label_2)
 
 # orbit vs. stellar mass
-plot_clusters_3d(X[:,0], X[:,2], X[:,1], title=title, label_1=label_1, label_2=label_3)
+plot_clusters_3d(labels_u, X[:,0], X[:,2], X[:,1], title=title, label_1=label_1, label_2=label_3)
 
 # planet mass vs. stellar mass
-plot_clusters_3d(X[:,1], X[:,2], X[:,0], title=title, label_1=label_2, label_2=label_3)
+plot_clusters_3d(labels_u, X[:,1], X[:,2], X[:,0], title=title, label_1=label_2, label_2=label_3)

@@ -4,6 +4,7 @@ __pycache__
 *.txt
 *.dat
 *.ipynb
+*.ipynb_checkpoints/
 *.zip
 log_kep
 log_PSCP

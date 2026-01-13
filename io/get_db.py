@@ -1,23 +1,15 @@
 from datetime import datetime
 import numpy as np
-import os
-import pandas as pd
 import pyvo as vo
 import re
 
-# create object that will service TAP queries to NEA TAP server
-url_NEA = "https://exoplanetarchive.ipac.caltech.edu/TAP"
-service_NEA = vo.dal.TAPService(url_NEA)
 
-# create object that will service TAP queries to SIMBAD TAP server
-url_SIMBAD = "https://simbad.unistra.fr/simbad/sim-tap"
-service_SIMBAD = vo.dal.TAPService(url_SIMBAD)
 
 #------------------------------------------------------------------------------
 # COLUMNS TO FETCH
 #------------------------------------------------------------------------------
 
-# planetary systems (NEA confirmed exoplanets)
+# Planetary Systems Composite Data (NEA confirmed exoplanets)
 ps_cols = [
     "pl_name", "hostname",
     "st_mass", "st_masserr1", "st_masserr2",
@@ -34,7 +26,7 @@ ps_cols = [
     "pl_orbsmax", "pl_orbsmaxerr1", "pl_orbsmaxerr2"
 ]
 
-# kepler planets and candidates
+# Kepler planets and candidates
 koi_cols = [
     "kepid", "koi_disposition",
     "koi_smass", "koi_smass_err1", "koi_smass_err2",
@@ -47,7 +39,7 @@ koi_cols = [
     "koi_eccen", "koi_eccen_err1", "koi_eccen_err2",
 ]
 
-# k2 planets and candidates
+# K2/EPIC planets and candidates
 k2_cols = [
     "pl_name", "hostname", "disposition", "k2_name",
     "st_mass", "st_masserr1", "st_masserr2",
@@ -60,7 +52,7 @@ k2_cols = [
     "sy_dist", "sy_disterr1", "sy_disterr2"
 ]
 
-# tess planets and candidates
+# TESS planets and candidates
 toi_cols = [
     "tid", "toipfx",
     "st_teff", "st_tefferr1", "st_tefferr2",
@@ -72,41 +64,65 @@ toi_cols = [
 
 if __name__ == "__main__":
 
-    ##### NEA HOSTNAMES
+    ##### NEA CONFIRMED AND CANDIDATE HOSTS
 
+    # create object that will service TAP queries to NEA TAP server
     url_NEA = "https://exoplanetarchive.ipac.caltech.edu/TAP"
     service_NEA = vo.dal.TAPService(url_NEA)
+
+    # ADQL query sent to NEA TAP service
     query_NEA = """
-        SELECT pscomppars.hostname
+        SELECT hostname, 1 AS disposition
         FROM exo_tap.pscomppars
         UNION
-        SELECT k2pandc.hostname
+        SELECT hostname, 1 AS disposition
         FROM exo_tap.k2pandc
+        WHERE disposition = 'CONFIRMED'
         UNION
-        SELECT 'KIC ' || CAST(cumulative.kepid AS VARCHAR(8)) AS hostname
+        SELECT hostname, 0 AS disposition
+        FROM exo_tap.k2pandc
+        WHERE disposition = 'CANDIDATE'
+        UNION
+        SELECT 'KIC ' || CAST(cumulative.kepid AS VARCHAR(8)) AS hostname, 1 AS disposition
         FROM exo_tap.cumulative
+        WHERE koi_disposition = 'CONFIRMED'
         UNION
-        SELECT 'TIC ' || CAST(toi.tid AS VARCHAR(11)) AS hostname
+        SELECT 'KIC ' || CAST(cumulative.kepid AS VARCHAR(8)) AS hostname, 0 AS disposition
+        FROM exo_tap.cumulative
+        WHERE koi_disposition = 'CANDIDATE'
+        UNION
+        SELECT 'TIC ' || CAST(toi.tid AS VARCHAR(11)) AS hostname, 1 AS disposition
         FROM exo_tap.toi
+        WHERE tfopwg_disp = 'CP' or tfopwg_disp = 'KP'
+        UNION
+        SELECT 'TIC ' || CAST(toi.tid AS VARCHAR(11)) AS hostname, 0 AS disposition
+        FROM exo_tap.toi
+        WHERE tfopwg_disp = 'PC' or tfopwg_disp = 'APC'
     """
     time = datetime.now()
     res_NEA = service_NEA.run_sync(query_NEA, maxrec=100_000)
     dt = datetime.now() - time
     hostnames = res_NEA.to_table().to_pandas()
+    hostnames.to_csv("../db/hostnames.csv",index=False)
     print(f"Exoplanet Host Names Identified ({int(dt.seconds/60)}m {dt.seconds%60}s)")
+
 
 
     ##### SIMBAD ALIASES
 
+    # create object that will service TAP queries to SIMBAD TAP server
     url_SIMBAD = "https://simbad.unistra.fr/simbad/sim-tap"
     service_SIMBAD = vo.dal.TAPService(url_SIMBAD)
+
+    # ADQL query sent to SIMBAD TAP service
     query_SIMBAD = """
-        SELECT hostname, basic.main_id, id1.id AS kic, id2.id AS tic, id3.id AS epic, id4.id AS gaia_dr3_id, tbl.oidref
+        SELECT basic.main_id, tbl.disposition, id1.id AS kic, id2.id AS tic, id3.id AS epic, id4.id AS gaia_dr3_id, tbl.oidref
         FROM (
-          SELECT hostnames.hostname, id1.oidref AS oidref
+          SELECT MAX(disposition) AS disposition, oidref
           FROM TAP_UPLOAD.hostnames
-          LEFT JOIN ident as id1
+          INNER JOIN ident as id1
           ON id1.id = hostnames.hostname
+          GROUP BY oidref
         ) AS tbl
         LEFT JOIN (
           SELECT ident.id, ident.oidref
@@ -143,6 +159,9 @@ if __name__ == "__main__":
     print(f"Aliases Found ({int(dt.seconds/60)}m {dt.seconds%60}s)")
 
 
+
+    ##### POST-PROCESSING
+
     cols = ["oidref", "tic", "kic", "epic", "gaia_dr3_id"]
     aliases[cols] = aliases[cols].fillna(-1)
 
@@ -166,10 +185,17 @@ if __name__ == "__main__":
 
         return row
 
+    # strip catalog name from identifiers to convert into integers
     aliases[cols] = aliases[cols].apply(id_to_num, axis=1, result_type="expand")
 
-    ##### SAVE TABLES
+    # remove dupes (mostly in TIC) for same object
+    aliases = aliases.groupby(by="oidref").head(1)
+
+
+
+    ##### SAVE TABLE AND SUMMARY
 
     # write tables to db/nea/ directory
     aliases.to_csv("../db/aliases.csv", index=False)
 
+    print(aliases.count())

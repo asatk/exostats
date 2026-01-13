@@ -3,6 +3,7 @@ __pycache__
 *.tex
 *.txt
 *.dat
+/db/
 *.ipynb
 *.ipynb_checkpoints/
 *.zip
@@ -14,3 +15,4 @@ notebook.json.pmh
 log_kep
 log_PSCP
 .Rproj.user
+

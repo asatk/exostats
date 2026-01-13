@@ -175,6 +175,7 @@ cla24 = cla24.rename({
     }, axis=1)
 cla24["db"] = "cla24"
 
+# TODO decide whether or not to use adjusted period
 # Colman+ 24
 col24 = ascii.read("../db/tic/colman24.csv", format="csv").to_pandas()
 col24 = col24[["TIC", "Period", "Period sigma"]]
@@ -190,12 +191,22 @@ prot_tic = pd.concat([how20, mar20, hol22, cla24, col24])
 prot_tic = pd.merge(aliases, prot_tic, on="tic", how="left")
 print("tic: " + str(prot_tic.loc[prot_tic["Prot"].notnull(), "oidref"].nunique()))
 
+#------------------------------------------------------------------------------
+# ALL HOSTS
+#------------------------------------------------------------------------------
+
 
 # MASTER PROT TABLE
 
 prot_master = pd.concat([prot_gdr3, prot_kic, prot_epic, prot_tic])
-print("all: " + str(prot_master.loc[prot_master["Prot"].notnull(), "oidref"].nunique()))
 
-print(prot_master.count())
-print(prot_master[prot_master["Prot"].notnull()].count())
+# select only stars with non-zero rotation periods
+# for stars with multiple measurements, select that with the lowest uncertainty
+# if we desire to use that with the highest uncertainty, set ascending=False
+prot_master.loc[prot_master["E_Prot"] == 0.0, "E_Prot"] = np.nan
+prot_master = prot_master.sort_values("E_Prot", ascending=True).drop_duplicates("oidref")
 
+print("\nNumber of Unique Measurements across All Planet- or Candidate-hosting Stars: ")
+print(prot_master[["main_id", "Prot", "E_Prot"]].count())
+
+prot_master.to_csv("../db/prot.csv", index=False)

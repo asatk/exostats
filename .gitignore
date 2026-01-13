@@ -9,10 +9,8 @@ __pycache__
 *.zip
 log_kep
 log_PSCP
-goldilocks.code-workspace
-notebook.json
-notebook.json.pmh
 log_kep
 log_PSCP
 .Rproj.user
 
+.idea/

@@ -189,7 +189,7 @@ if __name__ == "__main__":
     aliases[cols] = aliases[cols].apply(id_to_num, axis=1, result_type="expand")
 
     # remove dupes (mostly in TIC) for same object
-    aliases = aliases.groupby(by="oidref").head(1)
+    aliases = aliases.drop_duplicates("oidref")
 
 
 

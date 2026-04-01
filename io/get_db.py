@@ -5,63 +5,6 @@ import re
 
 
 
-#------------------------------------------------------------------------------
-# COLUMNS TO FETCH
-#------------------------------------------------------------------------------
-
-# Planetary Systems Composite Data (NEA confirmed exoplanets)
-ps_cols = [
-    "pl_name", "hostname",
-    "st_mass", "st_masserr1", "st_masserr2",
-    "sy_vmag", "sy_vmagerr1", "sy_vmagerr2",
-    "sy_kmag", "sy_kmagerr1", "sy_kmagerr2",
-    "pl_orbsmax", "pl_orbsmaxerr1", "pl_orbsmaxerr2",
-    "pl_orbeccen", "pl_orbeccenerr1", "pl_orbeccenerr2",
-    "sy_umag", "sy_umagerr1", "sy_umagerr2",
-    "st_teff", "st_tefferr1", "st_tefferr2",
-    "st_lum", "st_lumerr1", "st_lumerr2",
-    "sy_dist", "sy_disterr1", "sy_disterr2",
-    "pl_bmasse", "pl_bmasseerr1", "pl_bmasseerr2",
-    "st_age", "st_ageerr1", "st_ageerr2",
-    "pl_orbsmax", "pl_orbsmaxerr1", "pl_orbsmaxerr2"
-]
-
-# Kepler planets and candidates
-koi_cols = [
-    "kepid", "koi_disposition",
-    "koi_smass", "koi_smass_err1", "koi_smass_err2",
-    "koi_steff", "koi_steff_err1", "koi_steff_err2",
-    "koi_srad", "koi_srad_err1", "koi_srad_err2",
-    "koi_gmag", "koi_gmag_err",
-    "koi_rmag", "koi_rmag_err",
-    "koi_kmag", "koi_kmag_err",
-    "koi_sma", "koi_sma_err1", "koi_sma_err2",
-    "koi_eccen", "koi_eccen_err1", "koi_eccen_err2",
-]
-
-# K2/EPIC planets and candidates
-k2_cols = [
-    "pl_name", "hostname", "disposition", "k2_name",
-    "st_mass", "st_masserr1", "st_masserr2",
-    "sy_vmag", "sy_vmagerr1", "sy_vmagerr2",
-    "sy_kmag", "sy_kmagerr1", "sy_kmagerr2",
-    "pl_orbsmax", "pl_orbsmaxerr1", "pl_orbsmaxerr2",
-    "pl_orbeccen", "pl_orbeccenerr1", "pl_orbeccenerr2",
-    "sy_umag", "sy_umagerr1", "sy_umagerr2",
-    "st_teff", "st_tefferr1", "st_tefferr2",
-    "sy_dist", "sy_disterr1", "sy_disterr2"
-]
-
-# TESS planets and candidates
-toi_cols = [
-    "tid", "toipfx",
-    "st_teff", "st_tefferr1", "st_tefferr2",
-    "st_rad", "st_raderr1", "st_raderr2",
-    "pl_orbper", "pl_orbpererr1", "pl_orbpererr2",
-]
-
-
-
 if __name__ == "__main__":
 
     ##### NEA CONFIRMED AND CANDIDATE HOSTS
@@ -72,7 +15,7 @@ if __name__ == "__main__":
 
     # ADQL query sent to NEA TAP service
     query_NEA = """
-        SELECT hostname, 1 AS disposition
+        SELECT hostname AS nea_id, 1 AS disposition
         FROM exo_tap.pscomppars
         UNION
         SELECT hostname, 1 AS disposition
@@ -116,13 +59,13 @@ if __name__ == "__main__":
 
     # ADQL query sent to SIMBAD TAP service
     query_SIMBAD = """
-        SELECT basic.main_id, tbl.disposition, id1.id AS kic, id2.id AS tic, id3.id AS epic, id4.id AS gaia_dr3_id, tbl.oidref
+        SELECT tbl.nea_id AS NEA_id, tbl.oidref, tbl.disposition, id1.id AS kic, id2.id AS tic, id3.id AS epic, id4.id AS gaia_dr3_id
         FROM (
-          SELECT MAX(disposition) AS disposition, oidref
+          SELECT MAX(disposition) AS disposition, nea_id, oidref
           FROM TAP_UPLOAD.hostnames
           INNER JOIN ident as id1
-          ON id1.id = hostnames.hostname
-          GROUP BY oidref
+          ON id1.id = hostnames.nea_id
+          GROUP BY oidref, nea_id
         ) AS tbl
         LEFT JOIN (
           SELECT ident.id, ident.oidref
@@ -147,9 +90,7 @@ if __name__ == "__main__":
           FROM ident
           WHERE ident.id LIKE 'Gaia DR3 %'
         ) AS id4
-        ON tbl.oidref = id4.oidref
-        LEFT JOIN basic
-        ON tbl.oidref = basic.oid;
+        ON tbl.oidref = id4.oidref;
     """
 
     time = datetime.now()

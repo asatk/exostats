@@ -519,9 +519,10 @@ def calculate_exos() -> pd.DataFrame:
         "Ro", "e_RoVK", "e_RoM", "e_Ro", "KOI", "KIC", "TIC", "GAIA", "db",
         "sy_dist", "e_sy_dist", "st_mass", "e_st_mass", "sy_vmag", "e_sy_vmag",
         "sy_kmag", "e_sy_kmag", "Prot","e_Prot", "VK_color", "e_VK_color",
-        "st_teff", "st_lum", "e_st_lum", "st_age", "e_st_age", "Tauc", "e_Tauc",
-        "st_met", "e_st_met", "st_spectype"
+        "st_teff", "e_st_teff", "st_lum", "e_st_lum", "st_age", "e_st_age",
+        "Tauc", "e_Tauc", "st_met", "e_st_met", "st_spectype"
     ]
+    # NOTE: before 2026.01.28 the dataset did not include e_st_teff
     
     # Planets must have a calculable r_p - both a and e.
     where_data = prot_data["Ro"].notnull() & prot_data["pl_orbsmax"].notnull()

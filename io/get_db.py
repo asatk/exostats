@@ -16,31 +16,32 @@ if __name__ == "__main__":
     # ADQL query sent to NEA TAP service
     query_NEA = """
         SELECT hostname AS nea_id, 1 AS disposition
-        FROM exo_tap.pscomppars
-        UNION
-        SELECT hostname, 1 AS disposition
-        FROM exo_tap.k2pandc
-        WHERE disposition = 'CONFIRMED'
-        UNION
-        SELECT hostname, 0 AS disposition
-        FROM exo_tap.k2pandc
-        WHERE disposition = 'CANDIDATE'
-        UNION
-        SELECT 'KIC ' || CAST(cumulative.kepid AS VARCHAR(8)) AS hostname, 1 AS disposition
-        FROM exo_tap.cumulative
-        WHERE koi_disposition = 'CONFIRMED'
-        UNION
-        SELECT 'KIC ' || CAST(cumulative.kepid AS VARCHAR(8)) AS hostname, 0 AS disposition
-        FROM exo_tap.cumulative
-        WHERE koi_disposition = 'CANDIDATE'
-        UNION
-        SELECT 'TIC ' || CAST(toi.tid AS VARCHAR(11)) AS hostname, 1 AS disposition
-        FROM exo_tap.toi
-        WHERE tfopwg_disp = 'CP' or tfopwg_disp = 'KP'
-        UNION
-        SELECT 'TIC ' || CAST(toi.tid AS VARCHAR(11)) AS hostname, 0 AS disposition
-        FROM exo_tap.toi
-        WHERE tfopwg_disp = 'PC' or tfopwg_disp = 'APC'
+        FROM pscomppars
+        UNION (
+          SELECT hostname, 1 AS disposition
+          FROM k2pandc
+          WHERE disposition = 'CONFIRMED'
+        ) UNION (
+          SELECT hostname, 0 AS disposition
+          FROM k2pandc
+          WHERE disposition = 'CANDIDATE'
+        ) UNION (
+          SELECT 'KIC ' || CAST(cumulative.kepid AS VARCHAR(8)) AS hostname, 1 AS disposition
+          FROM cumulative
+          WHERE koi_disposition = 'CONFIRMED'
+        ) UNION (
+          SELECT 'KIC ' || CAST(cumulative.kepid AS VARCHAR(8)) AS hostname, 0 AS disposition
+          FROM cumulative
+          WHERE koi_disposition = 'CANDIDATE'
+        ) UNION (
+          SELECT 'TIC ' || CAST(toi.tid AS VARCHAR(11)) AS hostname, 1 AS disposition
+          FROM toi
+          WHERE tfopwg_disp = 'CP' or tfopwg_disp = 'KP'
+        ) UNION (
+          SELECT 'TIC ' || CAST(toi.tid AS VARCHAR(11)) AS hostname, 0 AS disposition
+          FROM toi
+          WHERE tfopwg_disp = 'PC' or tfopwg_disp = 'APC'
+        )
     """
     time = datetime.now()
     res_NEA = service_NEA.run_sync(query_NEA, maxrec=100_000)

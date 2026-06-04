@@ -1,10 +1,6 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from scipy.interpolate import CloughTocher2DInterpolator
-
-from hz import HabitableZone
-
-
 
 # Wright+ 18 Convective Turnover Time (Mass)
 w18_sm_c0 = 2.33
@@ -40,16 +36,17 @@ def tauc_w18_vk(vk: np.ndarray, is_bounded: bool=False):
 def fetch_spline_data(fname: str):
     ms = pd.read_csv(fname, delimiter=r"\s+", na_values="--")
     ms.sort_values(by="Te(K)", ascending=True, inplace=True)
-    vk_ms = np.asarray(ms["V-K"].dropna(), dtype=np.float64)
-    teff_ms = np.asarray(ms["Te(K)"].dropna(), dtype=np.float64)
+    bad_data = np.isnan(ms["Te(K)"])
+    vk_ms = np.asarray(ms.loc[~bad_data, "V-K"], dtype=np.float64)
+    teff_ms = np.asarray(ms.loc[~bad_data, "Te(K)"], dtype=np.float64)
     return teff_ms, vk_ms
 
 
 
 def create_interpolator_temp_vk(is_bounded: bool=False):
-    teff_supg, vk_supg = fetch_spline_data("../../db/analysis/teff-color-supg.txt")
-    teff_gnt, vk_gnt = fetch_spline_data("../../db/analysis/teff-color-gnt.txt")
-    teff_ms, vk_ms = fetch_spline_data("../../db/analysis/teff-color-ms.txt")
+    teff_supg, vk_supg = fetch_spline_data("../db/analysis/teff-color-supg.txt")
+    teff_gnt, vk_gnt = fetch_spline_data("../db/analysis/teff-color-gnt.txt")
+    teff_ms, vk_ms = fetch_spline_data("../db/analysis/teff-color-ms.txt")
 
     coord_supg = np.stack([teff_supg, np.full_like(teff_supg, 1)], axis=1)
     coord_gnt = np.stack([teff_gnt, np.full_like(teff_gnt, 3)], axis=1)
@@ -58,8 +55,7 @@ def create_interpolator_temp_vk(is_bounded: bool=False):
     coords = np.r_[coord_supg, coord_gnt, coord_ms]
     vals = np.r_[vk_supg, vk_gnt, vk_ms]
 
-    interp = CloughTocher2DInterpolator(
-        coords, vals, bounds_error=is_bounded, fill_value=np.nan)
+    interp = CloughTocher2DInterpolator(coords, vals, fill_value=np.nan)
     return interp
 
 
@@ -73,32 +69,14 @@ r = -0.16
 Ro_sun = 1.85
 ra_sun = 20 * r_sun / au
 
-def a24_asurf(temp: np.ndarray, lumclass: np.ndarray, prot: np.ndarray, interp,
+def a24_asurf(teff: np.ndarray,
+              lumclass: np.ndarray,
+              prot: np.ndarray,
+              interp,
               is_bounded: bool=False):
-    vk = interp(temp, lumclass)
+    vk = interp(teff, lumclass)
     tauc = tauc_w18_vk(vk, is_bounded=is_bounded)
     Ro = prot / tauc
     ra = ra_sun * np.real(np.power(Ro / Ro_sun, s * r))
     return ra
 
-
-
-class AlfvenSurfaceHabitableZone(HabitableZone):
-
-    vk_bound_lo = 1.1
-    vk_bound_hi = 7.0
-
-    def __init__(self,
-                 is_bounded: bool=True):
-        self._is_bounded = is_bounded
-        self._interp = create_interpolator_temp_vk(is_bounded)
-        self._innerhz = lambda t_, lc_, p_: a24_asurf(t_, lc_, p_, self._interp, is_bounded=is_bounded)
-
-    def limits(self, *data):
-        teff = data[0]
-        lumclass = data[1]
-        prot = data[2]
-
-        lo = self._innerhz(teff, lumclass, prot)
-        hi = np.full_like(lo, np.inf)
-        return np.array([lo, hi])

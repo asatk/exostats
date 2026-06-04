@@ -1,10 +1,6 @@
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-from hz import HabitableZone
-
-########## CHZ
-
 # Kopparapu+ 14 Recent Venus Limit (inner optimistic CHZ)
 s_rv = 1.776
 a_rv = 2.136e-4
@@ -61,7 +57,11 @@ def k14_rv(temp: np.ndarray, lumi: np.ndarray, mass_pl: np.ndarray) -> np.ndarra
 
 # Runaway Greenhouse
 def k14_rg(temp: np.ndarray, lumi: np.ndarray, mass_pl: np.ndarray, interp) -> np.ndarray:
+    temp = np.clip(temp, a_min=2601, a_max=7199)
+    mass_pl = np.clip(mass_pl, a_min=0.11, a_max=4.9)
+
     t = (temp - t0)
+
     interp_input = np.stack([t, mass_pl]).T
     flux = interp(interp_input)
     dist = np.sqrt(lumi / flux)
@@ -88,51 +88,3 @@ def k14_em(temp: np.ndarray, lumi: np.ndarray, mass_pl: np.ndarray) -> np.ndarra
         d_em * t ** 4
     dist = np.sqrt(lumi / flux)
     return dist
-
-
-
-class CircumstellarHabitableZone(HabitableZone):
-    """
-    CHZ limits (au) for a system given the host's effective temperature (K) and
-    total luminosity (L_Sun) and a planet's mass.
-    """
-
-    teff_bound_lo = 2600.0
-    teff_bound_hi = 7200.0
-
-    mass_pl_bound_lo = 0.1
-    mass_pl_bound_hi = 5.0
-
-    def __init__(self,
-                 is_optimistic: bool=False,
-                 is_bounded: bool=True):
-        """
-        is_optimistic : bool
-            Uses the optimistic limits (inner=Recent Venus, outer=Early Mars)
-            as opposed to the conservative limits (inner=Runaway Greenhouse,
-            outer=Maximum Greenhouse).
-        is_bounded : bool
-            Ability to calculate HZ is determined by bounds on inputs decided
-            by the HZ models used. For CHZ, the temperatures are limited to
-            Teff in [2600K, 7200K].
-        """
-
-        self._is_optimistic = is_optimistic
-        self._is_bounded = is_bounded
-        
-        if is_optimistic:
-            self._innerhz_func = k14_rv
-            self._outerhz_func = k14_em
-        else:
-            self._interp = create_interpolator_k14_rg(is_bounded=is_bounded)
-            self._innerhz_func = lambda t_, l_, m_: k14_rg(t_, l_, m_, self._interp)
-            self._outerhz_func = k14_mg
-
-    def limits(self, *data):
-        teff = data[0]
-        lumi = data[1]
-        mass_pl = data[2]
-
-        lo = self._innerhz_func(teff, lumi, mass_pl)
-        hi = self._outerhz_func(teff, lumi, mass_pl)
-        return np.array([lo, hi])

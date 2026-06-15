@@ -1,5 +1,3 @@
-from statistics import median_low
-
 from astropy.table import Table
 import numpy as np
 import pandas as pd
@@ -15,16 +13,9 @@ def median_low(vals):
     return np.median(vals)
 
 
-def choose_msmt(df, col):
-    df_grp = df.groupby("oidref")[[col]]
-    return df_grp.apply(median_low)
-    # if len(msmts) % 2 == 1:
-    #     return np.median(msmts)
-
-    # mean = np.mean(msmts)
-    # choose_idx = np.argmin(msmts - mean)
-    #
-    # return msmts[choose_idx]
+def choose_msmt(df, col, func=median_low):
+    df_grp = df.groupby("oidref")[col]
+    return df_grp.apply(func)
 
 
 
@@ -99,19 +90,28 @@ simbad_query_template = \
 SELECT {0}
 FROM TAP_UPLOAD.hosts AS tbl
 LEFT JOIN {1}
-ON tbl.oidref = {1}.oidref;
+ON tbl.oidref = {1}.oidref
 """
 
 
 
-def build_simbad_query(table_name: str, *params: list[str]|str):
+def build_simbad_query(table_name: str, *params: list[str]|str, notnull: list[str]|str=None):
     if isinstance(params, list):
         params = ",".join(params)
 
     s = simbad_query_template.format(params, table_name, table_name)
+
+    if isinstance(notnull, str):
+        notnull = [notnull]
+    if isinstance(notnull, list):
+        s_notnull = "WHERE " + " ".join([f"{_s} IS NOT NULL" for _s in notnull])
+        s += s_notnull
+
+    s += ";"
+
     return s
 
-def form_query(t_name, p_names):
+def form_query(t_name, p_names, notnull: list[str]|str=None):
     cols = ["tbl.oidref"]
     if isinstance(p_names, list):
         cols.extend(p_names)
@@ -121,27 +121,26 @@ def form_query(t_name, p_names):
     cols = ", ".join(cols)
 
     qs = simbad_query_template.format(cols, t_name)
+
+    if isinstance(notnull, str):
+        notnull = [notnull]
+    if isinstance(notnull, list):
+        s_notnull = "WHERE " + " ".join([f"{_s} IS NOT NULL" for _s in notnull])
+        qs += s_notnull
+
+    qs += ";"
+
     return qs
 
 
-def submit_query(qs: str, hosts: Table):
-    # job = service_SIMBAD.submit_job(s, maxrec=200_000, uploads={"hosts": hosts})
+def submit_query(qs: str, hosts: Table, dtype=np.float64):
     print(qs)
-    res = service_SIMBAD.run_sync(qs, maxrec=200_000, uploads={"hosts": hosts}).to_table().to_pandas()
-    res.rename({"tbl.oidref": "oidref"}, inplace=True, axis=1)
-    res.set_index("oidref", inplace=True)
-    print(res)
-    print(f"{len(res)} records returned.")
-    return res
+    res_vo = service_SIMBAD.run_sync(qs, maxrec=200_000, uploads={"hosts": hosts})
+    res_table = res_vo.to_table()
+    res_pd = res_table.to_pandas(index="oidref").astype(dtype)
+    print(f"{len(res_pd)} records returned.")
+    return res_pd
 
-qs_sptype = \
-"""
-SELECT tbl.oidref, sptype
-FROM TAP_UPLOAD.hosts AS tbl
-LEFT JOIN messpt
-ON tbl.oidref = messpt.oidref
-WHERE sptype != '';
-"""
 
 # TODO had to upload this to the old TAP interface and extract data from there
 # SELECT tbl.col2, sptype
@@ -150,15 +149,6 @@ WHERE sptype != '';
 # ON tbl.col2 = messpt.oidref
 # WHERE sptype != '';
 
-
-qs_prot = \
-"""
-SELECT tbl.oidref, period prot
-FROM TAP_UPLOAD.hosts AS tbl
-LEFT JOIN mesvar
-ON tbl.oidref = mesvar.oidref
-WHERE vartyp = 'ROT';
-"""
 
 # Query for uncertainties
 query_errs = \
@@ -190,43 +180,75 @@ if __name__ == "__main__":
     # get msmt using closest to mean OR smallest unc
     jobs = []
 
-    # res_spt = submit_query(qs_sptype, hosts=hosts)
-    res_spt = pd.read_csv("../db/sptype.csv")
-    res_teff = submit_query(form_query("mesfe_h", "teff"), hosts=hosts)
-    # res_met = submit_query(form_query("mesfe_h", "fe_h AS met"), hosts=hosts)
-    # res_prot = submit_query(qs_prot, hosts=hosts)
-    # res_flux = submit_query(form_query("flux", "flux"), hosts=hosts)
-    # res_vmag = submit_query(form_query("allfluxes", "V as Vmag"), hosts=hosts)
-    # res_kmag = submit_query(form_query("allfluxes", "K as kmag"), hosts=hosts)
-    # res_nuvmag = submit_query(form_query("allfluxes", "F200W as nuvmag"), hosts=hosts)
-    # res_dist = submit_query(form_query("mesdistance", "dist"), hosts=hosts)
-    # res_rad = submit_query(form_query("mesdiameter", "diameter / 2 AS rad"), hosts=hosts)
-    # res_vsini = submit_query(form_query("mesrot", "vsini"), hosts=hosts)
+    qs_spt = \
+r"""
+SELECT tbl.oidref, sptype
+FROM TAP_UPLOAD.hosts as tbl
+LEFT JOIN messpt
+ON tbl.oidref = messpt.oidref
+WHERE regexp(sptype, '^[\\u0000-\\u007f]+$') = 1;"""
+    res_spt = submit_query(qs_spt, hosts=hosts, dtype=object)
 
-    spt = res_spt.groupby("oidref")[["sptype"]].apply(lambda l: l.head(1))
+    qs_teff = form_query("mesfe_h", "teff", notnull="teff")
+    res_teff = submit_query(qs_teff, hosts=hosts, dtype=np.int32)
+
+    qs_met = form_query("mesfe_h", "fe_h AS met", notnull="fe_h")
+    res_met = submit_query(qs_met, hosts=hosts, dtype=np.float32)
+
+    qs_prot = \
+"""
+SELECT tbl.oidref, period AS prot
+FROM TAP_UPLOAD.hosts AS tbl
+LEFT JOIN mesvar
+ON tbl.oidref = mesvar.oidref
+WHERE vartyp = 'ROT' AND period IS NOT NULL;"""
+    res_prot = submit_query(qs_prot, hosts=hosts, dtype=np.float64)
+
+    qs_flux = form_query("flux", "flux", notnull="flux")
+    res_flux = submit_query(qs_flux, hosts=hosts, dtype=np.float64)
+
+    qs_vmag = form_query("allfluxes", "V AS vmag", notnull="V")
+    res_vmag = submit_query(qs_vmag, hosts=hosts, dtype=np.float64)
+
+    qs_kmag = form_query("allfluxes", "K AS kmag", notnull="K")
+    res_kmag = submit_query(qs_kmag, hosts=hosts, dtype=np.float64)
+
+    qs_nuvmag = form_query("allfluxes", "F200W AS nuvmag", notnull="F200W")
+    res_nuvmag = submit_query(qs_nuvmag, hosts=hosts, dtype=np.float64)
+
+    qs_dist = form_query("mesdistance", "dist", notnull="dist")
+    res_dist = submit_query(qs_dist, hosts=hosts, dtype=np.float64)
+
+    qs_rad = form_query("mesdiameter", "diameter / 2 AS rad", notnull="diameter")
+    res_rad = submit_query(qs_rad, hosts=hosts, dtype=np.float64)
+
+    qs_vsini = form_query("mesrot", "vsini", notnull="vsini")
+    res_vsini = submit_query(qs_vsini, hosts=hosts, dtype=np.float32)
+
+    spt = choose_msmt(res_spt, "sptype", func=lambda l: l.head(1).iloc[0])
     teff = choose_msmt(res_teff, "teff")
-    # met = choose_msmt(res_met, "met")
-    # prot = choose_msmt(res_prot, "prot")
-    # flux = choose_msmt(res_flux, "flux")
-    # vmag = choose_msmt(res_vmag, "vmag")
-    # kmag = choose_msmt(res_kmag, "kmag")
-    # nuvmag = choose_msmt(res_nuvmag, "nuvmag")
-    # dist = choose_msmt(res_dist, "dist")
-    # rad = choose_msmt(res_rad, "rad")
-    # vsini = choose_msmt(res_vsini, "vsini")
+    met = choose_msmt(res_met, "met")
+    prot = choose_msmt(res_prot, "prot")
+    flux = choose_msmt(res_flux, "flux")
+    vmag = choose_msmt(res_vmag, "vmag")
+    kmag = choose_msmt(res_kmag, "kmag")
+    nuvmag = choose_msmt(res_nuvmag, "nuvmag")
+    dist = choose_msmt(res_dist, "dist")
+    rad = choose_msmt(res_rad, "rad")
+    vsini = choose_msmt(res_vsini, "vsini")
 
     params = [
         spt,
         teff,
-        # met,
-        # prot,
-        # flux,
-        # vmag,
-        # kmag,
-        # nuvmag,
-        # dist,
-        # rad,
-        # vsini
+        met,
+        prot,
+        flux,
+        vmag,
+        kmag,
+        nuvmag,
+        dist,
+        rad,
+        vsini
     ]
 
     df = hosts_df.copy()
@@ -248,7 +270,7 @@ if __name__ == "__main__":
     #                 # vsini
     #                 ], join="outer")
     df.reset_index(inplace=True, drop=False)
-    print(df.head(20))
+    print(df.head(10))
     df.to_csv("../db/params-new.csv", index=False)
 
 

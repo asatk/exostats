@@ -1,11 +1,11 @@
 """
-Name all confirmed and candidate planets in the Nasa Exoplanet Archive (NEA)
-database. Merges data from Kepler, K2, and TESS input catalogs in addition to
-other discoveries listed in the NEA's Planetary Systems Composite Parameters
-table. Each planet is listed with its host's name.
+Name the hosts of all confirmed and candidate planets in the Nasa Exoplanet
+Archive (NEA) database. Merges data from Kepler, K2, and TESS input catalogs in
+addition to other discoveries listed in the NEA's Planetary Systems Composite
+Parameters table.
 
 Author: Anthony Atkinson
-Last modified: 2026.06.26
+Last modified: 2026.07.18
 """
 
 from datetime import datetime
@@ -117,7 +117,6 @@ ON tbl.oidref = id4.oidref;"""
     # ID STRING TO NUMBER #
     # ------------------- #
 
-
     # names of ID columns to isolate integer ID num from ID string
     cols = ["oidref", "tic", "kic", "epic", "gaia_dr3_id"]
 
@@ -155,8 +154,21 @@ ON tbl.oidref = id4.oidref;"""
     # strip catalog name from identifiers to convert into integers
     aliases[cols] = aliases[cols].apply(id_to_num, axis=1, result_type="expand")
 
-    # remove dupes (mostly in TIC) for same object
-    aliases = aliases.drop_duplicates("oidref")
+    # use identifier that does not belong to a catalog as primary
+    p_main_id = re.compile(r"^((T|K|(EP))IC)|(GAIA DR(2|3))\s+\d+")
+    def select_main_id(df):
+        df_sorted = df.sort_values(by="hostname", ascending=True)
+        main_id_index = df_sorted.index[0]
+        for i, row in df_sorted.iterrows():
+            name = row["hostname"]
+            if p_main_id.match(name) is None:
+                main_id_index = i
+                break
+        main_id_row = df_sorted.loc[main_id_index]
+        return main_id_row
+
+    # remove oidref dupes to get a single hostname
+    aliases = aliases.groupby(by=["oidref"])[["hostname", *cols]].apply(select_main_id, include_groups=True)
 
 
 
@@ -168,4 +180,5 @@ ON tbl.oidref = id4.oidref;"""
     aliases.to_csv("../db/aliases.csv", index=False)
 
     # summarize identified planets (conf+cand)
+    # TODO print counts for catalog hosts w/o -1
     print(aliases.count())

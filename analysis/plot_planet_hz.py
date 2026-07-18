@@ -1,19 +1,18 @@
-import argparse
 import argparse as ap
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
 from matplotlib.path import Path
 import numpy as np
 import pandas as pd
-import sys
 
 from hz.ashz import AlfvenSurfaceHabitableZone
 from hz.chz import CircumstellarHabitableZone
 from hz.uhz import UltravioletHabitableZoneABG
 
 
+
 F_NUV = 0.1
-LUM_CLASS = 5
+LUM_CLASS_FILL = 5
 
 
 
@@ -23,19 +22,27 @@ parser = ap.ArgumentParser(prog="plot_planet_hz.py",
                            formatter_class=ap.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("plname")
-# parser.add_argument("-p", "--plot_lim", type=float)
-parser.add_argument("--fnuv", default=F_NUV, type=float, help="transmission of NUV emission through planetary atmosphere.")
-parser.add_argument("-f", "--files", nargs="+", default=["../db/solar_system.csv"], help=".csv files containing planetary system data.")
-parser.add_argument("-c", "--conditions", default="df['pl-name'] != ''", help="conditions filtering planets. Use 'df' to reference the dataframe; numpy functions are available.")
+parser.add_argument("--fnuv", default=F_NUV, type=float,
+                    help="transmission of NUV emission through planetary atmosphere.")
+parser.add_argument("-f", "--files", nargs="+", default=["../db/solar_system.csv"],
+                    help=".csv files containing planetary system data.")
+parser.add_argument("-c", "--conditions", default="df['pl_name'] != ''",
+                    help="conditions filtering planets. Use 'df' to reference the dataframe; numpy functions are available.")
+parser.add_argument("-x", "--plot_limit", default=None, type=float,
+                    help="extent of plot in au.")
+parser.add_argument("-l", "--lum_class_fill", default=LUM_CLASS_FILL, type=float,
+                    help="fill value for luminosity class when missing (typically 5=V/Main Sequence).")
 
 args = vars(parser.parse_args())
-
-
 
 plname = args["plname"]
 files = args["files"]
 cond_s = args["conditions"]
 fnuv_val = args["fnuv"]
+plot_lim = args["plot_limit"]
+lum_class_fill = args["lum_class_fill"]
+
+
 
 # read data tables
 df = pd.read_csv(files[0])
@@ -44,9 +51,8 @@ if "fictional" not in df.columns:
 else:
     df["fictional"] = df["fictional"].astype(bool)
 
-if "plot-label" not in df.columns:
-    df["plot-label"] = ""
-
+if "plot_label" not in df.columns:
+    df["plot_label"] = None
 
 for filename_i in files[1:]:
     df_i = pd.read_csv(filename_i)
@@ -56,8 +62,8 @@ for filename_i in files[1:]:
     else:
         df_i["fictional"] = df_i["fictional"].astype(bool)
 
-    if "plot-label" not in df.columns:
-        df["plot-label"] = ""
+    if "plot_label" not in df.columns:
+        df["plot_label"] = None
 
     df = pd.merge(df, df_i, how="outer")
 
@@ -66,37 +72,20 @@ for filename_i in files[1:]:
 cond = eval(cond_s)
 
 
-
-# r_lim = np.max(df["pl-orbsmax"] * (1 - df["pl-orbeccen"]))
 r_lim = 100.
-# cond = (np.abs(df["pl-orbsmax"]) < 5.0) & (df["fictional"] == False)
-# cond = (df["fictional"] == False)
 df = df.loc[cond].reset_index()
 
-
-
-lumi = df["st-lum"].to_numpy()
-# e_lumi = df["e_st_lum"].to_numpy()
-teff = df["st-teff"].to_numpy()
-# e_teff = 0.1 * teff
-prot = df["Prot"].to_numpy()
-# e_prot = df["e_Prot"].to_numpy()
-plmass = df["pl-bmasse"].to_numpy()
-# e_plmass = df["e_pl_bmasse"].to_numpy()
-rperi = (1 - df["pl-orbeccen"].to_numpy()) * df["pl-orbsmax"].to_numpy()
-# e_rperi = df["e_rperi"].to_numpy()
-rapo = (1 + df["pl-orbeccen"].to_numpy()) * df["pl-orbsmax"].to_numpy()
-# e_rapo
-eccen = df["pl-orbeccen"].to_numpy()
-# e_eccen = df["e_pl_orbeccen"].to_numpy()
-smax = df["pl-orbsmax"].to_numpy()
-# e_smax = df["e_pl_orbsmax"].to_numpy()
-
-
+lumi = df["st_lum"].to_numpy()
+teff = df["st_teff"].to_numpy()
+prot = df["st_rotp"].to_numpy()
+plmass = df["pl_bmasse"].to_numpy()
+rperi = (1 - df["pl_orbeccen"].to_numpy()) * df["pl_orbsmax"].to_numpy()
+rapo = (1 + df["pl_orbeccen"].to_numpy()) * df["pl_orbsmax"].to_numpy()
+eccen = df["pl_orbeccen"].to_numpy()
+smax = df["pl_orbsmax"].to_numpy()
 
 fnuv = np.repeat([fnuv_val], repeats=len(df))
-# lumclass = df["lumclass"].to_numpy()
-lumclass = np.repeat([LUM_CLASS], repeats=len(df))
+lumclass = df["st_lc_num"].fillna(lum_class_fill).to_numpy()
 
 
 
@@ -138,7 +127,7 @@ uhz_lo, uhz_hi = uhz.zone(theta, phi)
 ashz_lo, ashz_hi = ashz.zone(theta, phi)
 
 
-ind_plname = df["pl-name"].isin([plname])
+ind_plname = df["pl_name"].isin([plname])
 
 if not np.any(ind_plname):
     print(f"{plname} not found in database.")
@@ -146,7 +135,7 @@ if not np.any(ind_plname):
 
 i = np.where(ind_plname)[0][0]
 hostname = df.at[i, "hostname"]
-print(f"Characterizing the habitability of planet: {df.loc[i,'pl-name']}")
+print(f"Characterizing the habitability of planet: {df.loc[i,'pl_name']}")
 chz_in = np.full_like(phi, chz.inner_rad()[i])
 chz_out = np.full_like(phi, chz.outer_rad()[i])
 uhz_in = np.full_like(phi, uhz.inner_rad()[i])
@@ -171,7 +160,8 @@ df_system = df.loc[rows_system]
 text_frac = 0.025
 ruler_frac = 0.125
 arrow_frac = 0.25
-plot_lim = rapo[i] * 1.1
+if plot_lim is None:
+    plot_lim = rapo[i] * 1.1
 
 th_ruler_start = -np.pi/2
 th_ruler_end = np.atan(ruler_frac * plot_lim / rperi[i]) - np.pi
@@ -193,49 +183,49 @@ fig, ax = plt.subplots(subplot_kw=dict(projection="polar"), figsize=(6,6))
 if hostname != "Sol":
     # ax.set_title(f"{hostname} System")
 
-    ax.scatter(0, 0, zorder=5, color="black", marker=".", edgecolors="black", lw=0.0, s=25)
-    ax.text(np.pi/2, text_frac * plot_lim, hostname, fontsize=16, ha="center", va="bottom", zorder=5)
+    ax.scatter(0, 0, zorder=200, color="black", marker=".", edgecolors="black", lw=0.0, s=25)
+    ax.text(np.pi/2, text_frac * plot_lim, hostname, fontsize=16, ha="center", va="bottom", zorder=200)
 else:
     # ax.set_title(f"Solar System")
-    ax.text(0, 0, "☉", fontsize=16, ha="center", va="center", zorder=5)
+    ax.text(0, 0, "☉", fontsize=16, ha="center", va="center", zorder=200)
 
 
 # maximal HZs
 # ax.fill_between(phi, hz_in, hz_out, color="#CCCCCC", alpha=0.5, label="hz", hatch="\\\\\\\\", lw=0, where=hz_in < hz_out, zorder=0)
-ax.fill_between(phi, hz_in_abg, hz_out_abg, color="#BBBBBB", alpha=0.5, label="hz*", hatch="///", lw=0, where=hz_in_abg < hz_out_abg, zorder=1)
+ax.fill_between(phi, hz_in_abg, hz_out_abg, color="#C8C8C8", alpha=0.5, label="hz*", hatch="///", lw=0, where=hz_in_abg < hz_out_abg, zorder=1)
 
 #--- CHZ
 ax.plot(phi, chz_in, color="C2", alpha=0.8, lw=2, zorder=3)
 ax.plot(phi, chz_out, color="C2", alpha=0.8, lw=2, label="chz", zorder=3)
 
-val1_chz = np.max(chz_in)
-val2_chz = np.min(chz_out)
-prec1_chz = max(int(-np.log10(val1_chz)) + 2, 0)
-prec2_chz = max(int(-np.log10(val2_chz)) + 2, 0)
-text_chz = f"CHZ\n{val1_chz:.{prec1_chz}f}$-$\n{val2_chz:.{prec2_chz}f} au"
+val1_chz = np.nanmax(chz_in)
+val2_chz = np.nanmin(chz_out)
+if not np.isnan(val1_chz) and not np.isnan(val2_chz):
+    prec1_chz = max(int(-np.log10(val1_chz)) + 2, 0)
+    prec2_chz = max(int(-np.log10(val2_chz)) + 2, 0)
+    text_chz = f"CHZ\n{val1_chz:.{prec1_chz}f}$-$\n{val2_chz:.{prec2_chz}f} au"
 
+    phi_chz_start = 0 * np.pi / 4
+    th_chz_start = np.pi / 2
+    r_chz_start = np.sqrt(np.sum(np.square(chz.zone(theta=th_chz_start, phi=phi_chz_start)[0][i])))
+    r_chz_end = np.sqrt(np.sum(np.square(chz.zone(theta=th_chz_start, phi=phi_chz_start)[1][i])))
 
-phi_chz_start = 0 * np.pi / 4
-th_chz_start = np.pi / 2
-r_chz_start = np.sqrt(np.sum(np.square(chz.zone(theta=th_chz_start, phi=phi_chz_start)[0][i])))
-r_chz_end = np.sqrt(np.sum(np.square(chz.zone(theta=th_chz_start, phi=phi_chz_start)[1][i])))
-
-# arrow
-if r_chz_end > plot_lim:
-    # r_chz_end = r_chz_start + arrow_frac * plot_lim
-    r_chz_start = plot_lim * (1 - arrow_frac)
-    r_chz_end = plot_lim
-    arrow_chz = mpatches.FancyArrowPatch(
-        (phi_chz_start, r_chz_start), (phi_chz_start, r_chz_end),
-        color="C2", arrowstyle="->", mutation_scale=10, lw=2, zorder=3)
-# otherwise just bar
-else:
-    arrow_chz = mpatches.FancyArrowPatch(
-        (phi_chz_start, r_chz_start), (phi_chz_start, r_chz_end),
-        color="C2", arrowstyle="-", mutation_scale=10, lw=2, ls=":", zorder=3)
-ax.add_patch(arrow_chz)
-ax.text(phi_chz_start, r_chz_end, text_chz,
-        ha="center", va="bottom", color="C2", fontsize=14, zorder=4)
+    # arrow
+    if r_chz_end > plot_lim:
+        # r_chz_end = r_chz_start + arrow_frac * plot_lim
+        r_chz_start = plot_lim * (1 - arrow_frac)
+        r_chz_end = plot_lim
+        arrow_chz = mpatches.FancyArrowPatch(
+            (phi_chz_start, r_chz_start), (phi_chz_start, r_chz_end),
+            color="C2", arrowstyle="->", mutation_scale=10, lw=2, zorder=3)
+    # otherwise just bar
+    else:
+        arrow_chz = mpatches.FancyArrowPatch(
+            (phi_chz_start, r_chz_start), (phi_chz_start, r_chz_end),
+            color="C2", arrowstyle="-", mutation_scale=10, lw=2, ls=":", zorder=3)
+    ax.add_patch(arrow_chz)
+    ax.text(phi_chz_start, r_chz_end, text_chz,
+            ha="center", va="bottom", color="C2", fontsize=14, zorder=4)
 
 #--- UHZ
 ax.plot(phi, uhz_in, color="C4", alpha=0.8, lw=2, label="uhz", zorder=3)
@@ -243,35 +233,36 @@ ax.plot(phi, uhz_out, color="C4", alpha=0.8, lw=2, zorder=3)
 
 val1_uhz = np.max(uhz_in)
 val2_uhz = np.min(uhz_out)
-prec1_uhz = max(int(-np.log10(val1_uhz)) + 2, 0)
-prec2_uhz = max(int(-np.log10(val2_uhz)) + 2, 0)
-text_uhz = f"UHZ\n{val1_uhz:.{prec1_uhz}f}$-$\n{val2_uhz:.{prec2_uhz}f} au"
+if not np.isnan(val1_uhz) and not np.isnan(val2_uhz):
+    prec1_uhz = max(int(-np.log10(val1_uhz)) + 2, 0)
+    prec2_uhz = max(int(-np.log10(val2_uhz)) + 2, 0)
+    text_uhz = f"UHZ\n{val1_uhz:.{prec1_uhz}f}$-$\n{val2_uhz:.{prec2_uhz}f} au"
 
-phi_uhz_start = 1 * np.pi / 4
-th_uhz_start = np.pi / 2
-r_uhz_start = np.sqrt(np.sum(np.square(uhz.zone(theta=th_uhz_start, phi=phi_uhz_start)[0][i])))
-r_uhz_end = np.sqrt(np.sum(np.square(uhz.zone(theta=th_uhz_start, phi=phi_uhz_start)[1][i])))
+    phi_uhz_start = 1 * np.pi / 4
+    th_uhz_start = np.pi / 2
+    r_uhz_start = np.sqrt(np.sum(np.square(uhz.zone(theta=th_uhz_start, phi=phi_uhz_start)[0][i])))
+    r_uhz_end = np.sqrt(np.sum(np.square(uhz.zone(theta=th_uhz_start, phi=phi_uhz_start)[1][i])))
 
-# arrow
-if (r_uhz_start >= plot_lim) and (r_uhz_end > plot_lim):
-    r_uhz_start = plot_lim * (1 - arrow_frac)
-    r_uhz_end = plot_lim
-    arrow_uhz = mpatches.FancyArrowPatch(
-        (phi_uhz_start, r_uhz_start), (phi_uhz_start, r_uhz_end),
-        color="C4", arrowstyle="->", mutation_scale=10, lw=2, zorder=3)
-# otherwise just bar
-elif (r_uhz_start < plot_lim) and (r_uhz_end > plot_lim):
-    r_uhz_end = min(plot_lim, r_uhz_start + plot_lim * arrow_frac)
-    arrow_uhz = mpatches.FancyArrowPatch(
-        (phi_uhz_start, r_uhz_start), (phi_uhz_start, r_uhz_end),
-        color="C4", arrowstyle="->", mutation_scale=10, lw=2, zorder=3)
-else:
-    arrow_uhz = mpatches.FancyArrowPatch(
-        (phi_uhz_start, r_uhz_start), (phi_uhz_start, r_uhz_end),
-        color="C4", arrowstyle="-", mutation_scale=10, lw=2, ls=":", zorder=3)
-ax.add_patch(arrow_uhz)
-ax.text(phi_uhz_start, r_uhz_end, text_uhz,
-        ha="center", va="bottom", color="C4", fontsize=14, zorder=4)
+    # arrow
+    if (r_uhz_start >= plot_lim) and (r_uhz_end > plot_lim):
+        r_uhz_start = plot_lim * (1 - arrow_frac)
+        r_uhz_end = plot_lim
+        arrow_uhz = mpatches.FancyArrowPatch(
+            (phi_uhz_start, r_uhz_start), (phi_uhz_start, r_uhz_end),
+            color="C4", arrowstyle="->", mutation_scale=10, lw=2, zorder=3)
+    # otherwise just bar
+    elif (r_uhz_start < plot_lim) and (r_uhz_end > plot_lim):
+        r_uhz_end = min(plot_lim, r_uhz_start + plot_lim * arrow_frac)
+        arrow_uhz = mpatches.FancyArrowPatch(
+            (phi_uhz_start, r_uhz_start), (phi_uhz_start, r_uhz_end),
+            color="C4", arrowstyle="->", mutation_scale=10, lw=2, zorder=3)
+    else:
+        arrow_uhz = mpatches.FancyArrowPatch(
+            (phi_uhz_start, r_uhz_start), (phi_uhz_start, r_uhz_end),
+            color="C4", arrowstyle="-", mutation_scale=10, lw=2, ls=":", zorder=3)
+    ax.add_patch(arrow_uhz)
+    ax.text(phi_uhz_start, r_uhz_end, text_uhz,
+            ha="center", va="bottom", color="C4", fontsize=14, zorder=4)
 
 
 
@@ -279,24 +270,25 @@ ax.text(phi_uhz_start, r_uhz_end, text_uhz,
 ax.plot(phi, ashz_in, color="C1", alpha=0.8, lw=2, label="ashz", zorder=3)
 
 val_ashz = np.max(ashz_in)
-prec_ashz = max(int(-np.log10(val_ashz)) + 2, 0)
-text_ashz = f"ASHZ\n$>${val_ashz:.{prec_ashz}f} au"
+if not np.isnan(val_ashz):
+    prec_ashz = max(int(-np.log10(val_ashz)) + 2, 0)
+    text_ashz = f"ASHZ\n$>${val_ashz:.{prec_ashz}f} au"
 
-phi_ashz_start = 2 * np.pi / 4
-th_ashz_start = np.pi / 2
-r_ashz_start = np.sqrt(np.sum(np.square(ashz.zone(theta=th_ashz_start, phi=phi_ashz_start)[0][i])))
-r_ashz_end = r_ashz_start + arrow_frac * plot_lim
+    phi_ashz_start = 2 * np.pi / 4
+    th_ashz_start = np.pi / 2
+    r_ashz_start = np.sqrt(np.sum(np.square(ashz.zone(theta=th_ashz_start, phi=phi_ashz_start)[0][i])))
+    r_ashz_end = r_ashz_start + arrow_frac * plot_lim
 
-if r_ashz_start > plot_lim:
-    r_ashz_start = plot_lim * (1 - arrow_frac)
-    r_ashz_end = plot_lim
+    if r_ashz_start > plot_lim:
+        r_ashz_start = plot_lim * (1 - arrow_frac)
+        r_ashz_end = plot_lim
 
-arrow_ashz = mpatches.FancyArrowPatch(
-    (phi_ashz_start, r_ashz_start), (phi_ashz_start, r_ashz_end),
-    color="C1", arrowstyle="->", mutation_scale=10, lw=2, zorder=3)
-ax.add_patch(arrow_ashz)
-ax.text(phi_ashz_start, r_ashz_end, text_ashz,
-        ha="center", va="bottom", color="C1", fontsize=14, zorder=4)
+    arrow_ashz = mpatches.FancyArrowPatch(
+        (phi_ashz_start, r_ashz_start), (phi_ashz_start, r_ashz_end),
+        color="C1", arrowstyle="->", mutation_scale=10, lw=2, zorder=3)
+    ax.add_patch(arrow_ashz)
+    ax.text(phi_ashz_start, r_ashz_end, text_ashz,
+            ha="center", va="bottom", color="C1", fontsize=14, zorder=4)
 
 #--- ruler
 arrow = mpatches.FancyArrowPatch(path=path_ruler, arrowstyle="|-|", color="black", lw=1, mutation_scale=5, zorder=2)
@@ -315,28 +307,33 @@ ax.text(th_ruler_text, r_ruler_text, ruler_text, ha="center", va="top", color="b
 
 # planet marker size scale
 def marker_size(mass: float):
-    if mass > 1000.0:
-        return 1000
-    if mass < 0.1:
-        return 200
-    else:
-        return (1000 - 200) * (np.log10(mass) - -1) / (3 - -1) + 200
+    # sigmoid/tanh
+    return (1000 - 200) * (np.tanh(np.log10(mass) - 2.25) + 1) + 200
+    # mu_mass = 50
+    # sig_mass = 25
+    # return (1000 - 200) * (np.tanh((mass - mu_mass) / mu_mass) + 1) + 200
+    # if mass > 1000.0:
+    #     return 1000
+    # if mass < 0.1:
+    #     return 200
+    # else:
+    #     return (1000 - 200) * (np.log10(mass) - -1) / (3 - -1) + 200
 
 # iterate through all planets in a system
 for r in df_system.iterrows():
     # row as a Series object
     row: pd.Series = r[1]
 
-    a_r = row['pl-orbsmax']
-    e_r = row['pl-orbeccen']
+    a_r = row['pl_orbsmax']
+    e_r = row['pl_orbeccen']
     rperi_r = np.abs(a_r * (1 - e_r))
     s_r = np.sign(a_r)
     theta_r = np.pi * (1 + s_r) / 2
 
-    if row['pl-name'] == 'Gor':
+    if row['pl_name'] == 'Gor':
         print(a_r, e_r, rperi_r, s_r, theta_r, rperi_r)
 
-    if rperi_r > plot_lim:
+    if rperi_r > plot_lim or np.isnan(a_r) or np.isnan(e_r) or np.isnan(row['pl_bmasse']) or row['pl_letter'] is None:
         continue
 
     orbit = ellipse_polar(a_r, e_r, npts)
@@ -344,19 +341,19 @@ for r in df_system.iterrows():
     # orbit
     ax.plot(orbit[0], orbit[1], lw=1, ls=":", color="black", alpha=0.5, zorder=100)
 
-    if row['plot-label'] == "":
-        size_r = marker_size(row['pl-bmasse'])
+    if row['plot_label'] == "" or row["plot_label"] is None:
+        size_r = marker_size(row['pl_bmasse'])
 
         # planet marker
-        ax.scatter(s_r * theta_r, rperi_r, color="C3", edgecolors="white", lw=0.5, s=size_r, zorder=100)
+        ax.scatter(s_r * theta_r, rperi_r, color="C3", alpha=0.8, edgecolors="white", lw=0.5, s=size_r, zorder=100)
 
         # planet text
-        ax.text(s_r * theta_r, rperi_r, f"{row['pl-letter']}", ha="center", va="center", color="white", fontsize=14, zorder=101)
-        if hostname not in row['pl-name']:
-            ax.text(s_r * np.atan2(8 * text_frac, -s_r), (rperi_r**2 + (8 * text_frac * plot_lim)**2)**0.5, f"({row['pl-name']})", ha="center", va="center", color="black", fontsize=14, zorder=101)
+        ax.text(s_r * theta_r, rperi_r, f"{row['pl_letter']}", ha="center", va="center", color="white", fontsize=14, zorder=101)
+        if hostname not in row['pl_name']:
+            ax.text(s_r * np.atan2(8 * text_frac, -s_r), (rperi_r**2 + (8 * text_frac * plot_lim)**2)**0.5, f"({row['pl_name']})", ha="center", va="center", color="black", fontsize=14, zorder=101)
 
     else:
-        ax.text(s_r * theta_r, rperi_r, f"{row['plot-label']}", fontsize=16, ha="center", va="center", zorder=100)
+        ax.text(s_r * theta_r, rperi_r, f"{row['plot_label']}", fontsize=16, ha="center", va="center", zorder=100)
 
 # ax.set_yscale("symlog")
 ax.set_ylim(0.0, plot_lim)
@@ -367,12 +364,14 @@ ax.patch.set_visible(False)
 ax.set_xticks([])
 ax.set_yticks([])
 
-# NOTE: set to false if transparent background desired
-fig.patch.set_visible(False)
+# NOTE: set to `False` if transparent background desired
+fig.patch.set_visible(True)
 plt.show()
 
 # print planet's HZs
-print(f"Orbit: {rperi[i]:.03f}, {rapo[i]:.03f}\n" + \
+print(f"Planet: {plname}\n" + \
+       "<Zone>: <Inner>, <Outer>\n" + \
+      f"Orbit: {rperi[i]:.03f}, {rapo[i]:.03f}\n" + \
       f"CHZ: {chz.inner_rad()[i]:.03f}, {chz.outer_rad()[i]:.03f}\n" + \
       f"UHZ: {uhz.inner_rad()[i]:.03f}, {uhz.outer_rad()[i]:.03f}\n" + \
       f"ASHZ: {ashz.inner_rad()[i]:.03f}, {ashz.outer_rad()[i]:.03f}/inf")

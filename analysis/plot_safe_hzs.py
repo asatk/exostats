@@ -197,7 +197,7 @@ def safe_plot(df: pd.DataFrame, col1: str, col2: str, title: str=None,
     ax2.patch.set_visible(False)
     ax3.patch.set_visible(False)
     ax4.patch.set_visible(False)
-    fig.patch.set_visible(False)
+    # fig.patch.set_visible(False)
 
     if filename is not None:
         fig.savefig(filename)
@@ -206,12 +206,14 @@ def safe_plot(df: pd.DataFrame, col1: str, col2: str, title: str=None,
 
 safe_plot(df, "pl_orbsmax", "pl_bmasse",
           title="Marginally-Safe Planets and Candidates",
+          # title="Marginally-Safe Planets and Candidates (m < 10 m$_\oplus$)",
           col1_label="Semi-major Axis (au)",
           col2_label=r"Planet Mass (M$_\oplus$)",
           filename="./plots/marginally-safe_hzs.png")
 
 safe_plot(df, "pl_orbsmax", "pl_bmasse",
           title="Safe Planets and Candidates",
+          # title="Safe Planets and Candidates (m < 10 m$_\oplus$)",
           col1_label="Semi-major Axis (au)",
           col2_label=r"Planet Mass (M$_\oplus$)",
           chz_cond=chz_safe == 1.0,

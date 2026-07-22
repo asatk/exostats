@@ -180,5 +180,6 @@ ON tbl.oidref = id4.oidref;"""
     aliases.to_csv("../db/aliases.csv", index=False)
 
     # summarize identified planets (conf+cand)
+    aliases = aliases.replace(-1, np.nan)
     # TODO print counts for catalog hosts w/o -1
     print(aliases.count())

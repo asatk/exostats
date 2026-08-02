@@ -157,19 +157,21 @@ df_system = df.loc[rows_system]
 
 
 # plot variables
-text_frac = 0.025
+host_text_frac = 0.025
+planet_text_frac = 4 * host_text_frac
 ruler_frac = 0.125
 arrow_frac = 0.25
+plot_lim_factor = 1.1
 if plot_lim is None:
-    plot_lim = rapo[i] * 1.1
+    plot_lim = rapo[i] * plot_lim_factor
 
 th_ruler_start = -np.pi/2
 th_ruler_end = np.atan(ruler_frac * plot_lim / rperi[i]) - np.pi
-th_ruler_text = np.atan((ruler_frac + text_frac) * plot_lim / (rperi[i] / 2)) - np.pi
+th_ruler_text = np.atan((ruler_frac + host_text_frac) * plot_lim / (rperi[i] / 2)) - np.pi
 
 r_ruler_start = ruler_frac * plot_lim
 r_ruler_end = ruler_frac * plot_lim / np.sin(-th_ruler_end)
-r_ruler_text = (ruler_frac + text_frac) * plot_lim / np.sin(-th_ruler_text)
+r_ruler_text = (ruler_frac + host_text_frac) * plot_lim / np.sin(-th_ruler_text)
 
 th_ruler = np.linspace(th_ruler_start, th_ruler_end, npts, endpoint=True)
 r_ruler = ruler_frac * plot_lim / np.sin(-th_ruler)
@@ -184,7 +186,7 @@ if hostname != "Sol":
     # ax.set_title(f"{hostname} System")
 
     ax.scatter(0, 0, zorder=200, color="black", marker=".", edgecolors="black", lw=0.0, s=25)
-    ax.text(np.pi/2, text_frac * plot_lim, hostname, fontsize=16, ha="center", va="bottom", zorder=200)
+    ax.text(np.pi/2, host_text_frac * plot_lim, hostname, fontsize=16, ha="center", va="bottom", zorder=200)
 else:
     # ax.set_title(f"Solar System")
     ax.text(0, 0, "☉", fontsize=16, ha="center", va="center", zorder=200)
@@ -330,9 +332,6 @@ for r in df_system.iterrows():
     s_r = np.sign(a_r)
     theta_r = np.pi * (1 + s_r) / 2
 
-    if row['pl_name'] == 'Gor':
-        print(a_r, e_r, rperi_r, s_r, theta_r, rperi_r)
-
     if rperi_r > plot_lim or np.isnan(a_r) or np.isnan(e_r) or np.isnan(row['pl_bmasse']) or row['pl_letter'] is None:
         continue
 
@@ -349,8 +348,12 @@ for r in df_system.iterrows():
 
         # planet text
         ax.text(s_r * theta_r, rperi_r, f"{row['pl_letter']}", ha="center", va="center", color="white", fontsize=14, zorder=101)
-        if hostname not in row['pl_name']:
-            ax.text(s_r * np.atan2(8 * text_frac, -s_r), (rperi_r**2 + (8 * text_frac * plot_lim)**2)**0.5, f"({row['pl_name']})", ha="center", va="center", color="black", fontsize=14, zorder=101)
+
+        if row['pl_name'] != f"{hostname} {row['pl_letter']}":
+            ax.text(s_r * np.atan2(planet_text_frac * plot_lim, -s_r * rperi_r),
+                    (rperi_r ** 2 + (planet_text_frac * plot_lim) ** 2) ** 0.5,
+                    f"({row['pl_name']})", ha="center", va="center",
+                    color="black", fontsize=14, zorder=101)
 
     else:
         ax.text(s_r * theta_r, rperi_r, f"{row['plot_label']}", fontsize=16, ha="center", va="center", zorder=100)

@@ -52,6 +52,7 @@ def k14_rv(temp: np.ndarray, lumi: np.ndarray, mass_pl: np.ndarray) -> np.ndarra
         b_rv * t ** 2 + \
         c_rv * t ** 3 + \
         d_rv * t ** 4
+    flux[flux <= 0.0] = np.nan
     dist = np.sqrt(lumi / flux)
     return dist
 
@@ -64,6 +65,7 @@ def k14_rg(temp: np.ndarray, lumi: np.ndarray, mass_pl: np.ndarray, interp) -> n
 
     interp_input = np.stack([t, mass_pl]).T
     flux = interp(interp_input)
+    flux[flux <= 0.0] = np.nan
     dist = np.sqrt(lumi / flux)
     return dist
 
@@ -75,6 +77,7 @@ def k14_mg(temp: np.ndarray, lumi: np.ndarray, mass_pl: np.ndarray) -> np.ndarra
         b_mg * t ** 2 + \
         c_mg * t ** 3 + \
         d_mg * t ** 4
+    flux[flux <= 0.0] = np.nan
     dist = np.sqrt(lumi / flux)
     return dist
 
@@ -86,5 +89,6 @@ def k14_em(temp: np.ndarray, lumi: np.ndarray, mass_pl: np.ndarray) -> np.ndarra
         b_em * t ** 2 + \
         c_em * t ** 3 + \
         d_em * t ** 4
+    flux[flux <= 0.0] = np.nan
     dist = np.sqrt(lumi / flux)
     return dist

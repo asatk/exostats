@@ -75,7 +75,7 @@ def ellipse_polar(a, e, npts: int):
     return np.stack([theta_rep, r_rep], axis=0)
 
 
-npts = 1000
+npts = 10000
 theta = np.full(npts, np.pi / 2)
 phi = np.linspace(0, 2 * np.pi, npts, endpoint=True)
 
@@ -108,19 +108,52 @@ hz_outer_abg = np.min([chz_outer, uhz_outer, ashz_outer], axis=0)
 
 
 
-def calc_time_safe(r, inner, outer):
+def calc_angles_safe(r: np.ndarray,
+                     theta: np.ndarray,
+                     orb_a: np.ndarray,
+                     orb_e: np.ndarray,
+                     inner: np.ndarray,
+                     outer: np.ndarray):
     inner_rep = np.repeat([inner], r.shape[-1], axis=0).T
     outer_rep = np.repeat([outer], r.shape[-1], axis=0).T
     time_safe = np.sum((r > inner_rep) & (r < outer_rep), axis=1) / npts
     return time_safe
 
+def calc_time_safe(r: np.ndarray,
+                   theta: np.ndarray,
+                   orb_a: np.ndarray,
+                   orb_e: np.ndarray,
+                   inner: np.ndarray,
+                   outer: np.ndarray,
+                   atol: np.float64=1e-6):
+    inner_rep = np.repeat([inner], r.shape[-1], axis=0).T
+    outer_rep = np.repeat([outer], r.shape[-1], axis=0).T
+
+    ind_unsafe = (r <= inner_rep) | (r >= outer_rep)
+    ind_nan = np.isnan(inner_rep) | np.isnan(outer_rep)
+
+    r_copy = r.copy()
+    r_copy[ind_unsafe] = 0.0
+    r_copy[ind_nan] = np.nan
+    r_copy = r_copy[:,:-1]
+
+    dtheta = np.diff(theta)
+
+    # time in zone (tiz)
+    factor = 2*np.pi * (orb_a ** 2) * np.sqrt(1 - orb_e ** 2)
+    sum_rad = np.sum(r_copy**2 * dtheta, axis=1)
+    tiz = sum_rad / factor
+    tiz[np.isclose(tiz, 1.0, atol=atol)] = 1.0
+    return tiz
+
 orbits = ellipse_polar(smax, eccen, npts)
+orbits_th = orbits[0]
 orbits_r = orbits[1]
 
-chz_safe = calc_time_safe(orbits_r, chz_inner, chz_outer)
-uhz_safe = calc_time_safe(orbits_r, uhz_inner, uhz_outer)
-ashz_safe = calc_time_safe(orbits_r, ashz_inner, ashz_outer)
-hz_safe = calc_time_safe(orbits_r, hz_inner_abg, hz_outer_abg)
+chz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, chz_inner, chz_outer)
+uhz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, uhz_inner, uhz_outer)
+ashz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, ashz_inner, ashz_outer)
+hz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, hz_inner_abg, hz_outer_abg)
 
 safe_cand = hz_safe & (df["disposition"] == 0)
 safe_conf = hz_safe & (df["disposition"] == 1)

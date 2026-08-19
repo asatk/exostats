@@ -108,19 +108,52 @@ hz_outer_abg = np.min([chz_outer, uhz_outer, ashz_outer], axis=0)
 
 
 
-def calc_time_safe(r, inner, outer):
+def calc_angles_safe(r: np.ndarray,
+                     theta: np.ndarray,
+                     orb_a: np.ndarray,
+                     orb_e: np.ndarray,
+                     inner: np.ndarray,
+                     outer: np.ndarray):
     inner_rep = np.repeat([inner], r.shape[-1], axis=0).T
     outer_rep = np.repeat([outer], r.shape[-1], axis=0).T
     time_safe = np.sum((r > inner_rep) & (r < outer_rep), axis=1) / npts
     return time_safe
 
+def calc_time_safe(r: np.ndarray,
+                   theta: np.ndarray,
+                   orb_a: np.ndarray,
+                   orb_e: np.ndarray,
+                   inner: np.ndarray,
+                   outer: np.ndarray,
+                   atol: np.float64=1e-6):
+    inner_rep = np.repeat([inner], r.shape[-1], axis=0).T
+    outer_rep = np.repeat([outer], r.shape[-1], axis=0).T
+
+    ind_unsafe = (r <= inner_rep) | (r >= outer_rep)
+    ind_nan = np.isnan(inner_rep) | np.isnan(outer_rep)
+
+    r_copy = r.copy()
+    r_copy[ind_unsafe] = 0.0
+    r_copy[ind_nan] = np.nan
+    r_copy = r_copy[:,:-1]
+
+    dtheta = np.diff(theta)
+
+    # time in zone (tiz)
+    factor = 2*np.pi * (orb_a ** 2) * np.sqrt(1 - orb_e ** 2)
+    sum_rad = np.sum(r_copy**2 * dtheta, axis=1)
+    tiz = sum_rad / factor
+    tiz[np.isclose(tiz, 1.0, atol=atol)] = 1.0
+    return tiz
+
 orbits = ellipse_polar(smax, eccen, npts)
+orbits_th = orbits[0]
 orbits_r = orbits[1]
 
-chz_safe = calc_time_safe(orbits_r, chz_inner, chz_outer)
-uhz_safe = calc_time_safe(orbits_r, uhz_inner, uhz_outer)
-ashz_safe = calc_time_safe(orbits_r, ashz_inner, ashz_outer)
-hz_safe = calc_time_safe(orbits_r, hz_inner_abg, hz_outer_abg)
+chz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, chz_inner, chz_outer)
+uhz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, uhz_inner, uhz_outer)
+ashz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, ashz_inner, ashz_outer)
+hz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, hz_inner_abg, hz_outer_abg)
 
 safe_cand = hz_safe & (df["disposition"] == 0)
 safe_conf = hz_safe & (df["disposition"] == 1)
@@ -128,10 +161,6 @@ safe_conf = hz_safe & (df["disposition"] == 1)
 print(f"Safe candidate planets: {np.sum(safe_cand)}")
 print(f"Safe confirmed planets: {np.sum(safe_conf)}")
 
-# print(hz_safe[hz_safe > 0.0])
-
-
-# print(hz_safe[hz_safe > 0.0])
 print("chz > 0", np.sum(chz_safe > 0.0))
 print("uhz > 0", np.sum(uhz_safe > 0.0))
 print("ashz > 0", np.sum(ashz_safe > 0.0))
@@ -141,8 +170,6 @@ print("chz = 1", np.sum(chz_safe == 1.0))
 print("uhz = 1", np.sum(uhz_safe == 1.0))
 print("ashz = 1", np.sum(ashz_safe == 1.0))
 print("hz = 1", np.sum(hz_safe == 1.0))
-
-# print(chz_safe)
 
 df_chz_safe = df[chz_safe > 0.0]
 df_uhz_safe = df[uhz_safe > 0.0]

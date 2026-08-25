@@ -194,21 +194,25 @@ def safe_plot(df: pd.DataFrame, col1: str, col2: str, title: str=None,
 
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2, figsize=(8,8), sharex=True, sharey=True)
 
+    earth_x = earth_row[col1]
+    earth_y = earth_row[col2]
+    earth_text = earth_row["plot_label"]
+
     ax1.set_title(f"CHZ ({np.sum(chz_cond)})", fontsize=16)
     ax1.scatter(df.loc[chz_cond, col1], df.loc[chz_cond, col2], c="C2", s=10)
-    ax1.text(earth_row[col1], earth_row[col2], earth_row["plot_label"], fontsize=24, color="C2", va="center", ha="center")
+    ax1.text(earth_x, earth_y, earth_text, fontsize=24, color="C2", va="center", ha="center")
 
     ax2.set_title(f"UHZ ({np.sum(uhz_cond)})", fontsize=16)
     ax2.scatter(df.loc[uhz_cond, col1], df.loc[uhz_cond, col2], c="C4", s=10)
-    ax2.text(earth_row[col1], earth_row[col2], earth_row["plot_label"], fontsize=24, color="C4", va="center", ha="center")
+    ax2.text(earth_x, earth_y, earth_text, fontsize=24, color="C4", va="center", ha="center")
 
     ax3.set_title(f"ASHZ ({np.sum(ashz_cond)})", fontsize=16)
     ax3.scatter(df.loc[ashz_cond, col1], df.loc[ashz_cond, col2], c="C1", s=10)
-    ax3.text(earth_row[col1], earth_row[col2], earth_row["plot_label"], fontsize=24, color="C1", va="center", ha="center")
+    ax3.text(earth_x, earth_y, earth_text, fontsize=24, color="C1", va="center", ha="center")
 
     ax4.set_title(f"HZ ({np.sum(hz_cond)})", fontsize=16)
     ax4.scatter(df.loc[hz_cond, col1], df.loc[hz_cond, col2], c="C0", s=10)
-    ax4.text(earth_row[col1], earth_row[col2], earth_row["plot_label"], fontsize=24, color="C0", va="center", ha="center")
+    ax4.text(earth_x, earth_y, earth_text, fontsize=24, color="C0", va="center", ha="center")
 
     ax1.tick_params(labelsize=14)
     ax2.tick_params(labelsize=14)
@@ -216,6 +220,10 @@ def safe_plot(df: pd.DataFrame, col1: str, col2: str, title: str=None,
     ax4.tick_params(labelsize=14)
     ax1.set_xscale("log")
     ax1.set_yscale("log")
+    ax1.set_xlim(min(0.6 * earth_x, ax1.get_xlim()[0]),
+                 max(1.5 * earth_x, ax1.get_xlim()[1]))
+    ax1.set_ylim(min(0.6 * earth_y, ax1.get_ylim()[0]),
+                 max(1.5 * earth_y, ax1.get_ylim()[1]))
 
     if title is not None:
         fig.suptitle(title, fontsize=20)

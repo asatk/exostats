@@ -440,6 +440,8 @@ if __name__ == "__main__":
 
                 else:
                     if dtype == np.float64 or dtype == np.float32:
+                        # TODO consult NEA documentation to see appropriate
+                        # measurement selection decision
                         param = param.groupby("oidref")[col].apply(median_low)
 
                     elif dtype == np.int64 or dtype == np.int32:
@@ -506,7 +508,7 @@ if __name__ == "__main__":
     # export data only from NEA
     df_nea.to_csv("../db/params-nea.csv", index=False)
 
-    # okay the merge thing is buggy wtf
+    # okay the merge thing is buggy hm
     df = pd.read_csv("../db/params-simbad.csv")
     df_nea = pd.read_csv("../db/params-nea.csv")
 
@@ -520,7 +522,7 @@ if __name__ == "__main__":
     df_all["st_lc_num"] = extracted_spt_lc.apply(lambda t: t[1])
 
     # export merged NEA and SIMBAD data
-    filename_merged = "../db/params.csv"
+    filename_merged = "../db/params-step2.csv"
     print("Saving host parameters merged from SIMBAD and NEA to ", filename_merged)
     print(df_all.columns)
     df_all.to_csv(filename_merged, index=False)

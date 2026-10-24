@@ -218,7 +218,7 @@ if __name__ == "__main__":
 
     # TODO temporary merge fix -- figure this out in step 2
     params_simbad = pd.read_csv("../db/params-simbad.csv")
-    params = pd.read_csv("../db/params.csv")
+    params = pd.read_csv("../db/params-step2.csv")
     params = merge_update_df(params, params_simbad)
 
     # params = pd.read_csv("../db/params.csv")
@@ -226,4 +226,4 @@ if __name__ == "__main__":
     # prefer the compiled database of ROTPs since this is more consistent collection
     params = merge_update_df(prot_master, params)
 
-    params.to_csv("../db/params-rotp.csv", index=False)
+    params.to_csv("../db/params-step3.csv", index=False)

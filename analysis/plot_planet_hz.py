@@ -368,7 +368,7 @@ ax.set_xticks([])
 ax.set_yticks([])
 
 # NOTE: set to `False` if transparent background desired
-fig.patch.set_visible(True)
+fig.patch.set_visible(False)
 plt.show()
 
 # print planet's HZs

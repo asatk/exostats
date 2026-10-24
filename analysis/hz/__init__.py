@@ -4,6 +4,7 @@ from .chz import ConservativeCircumstellarHabitableZone
 from .hz import HabitableZone
 from .hz import UniformHabitableZone
 from .uhz import UltravioletHabitableZone
+from .uhz import UltravioletHabitableZoneABG
 
 __all__ = [
     "AlfvenSurfaceHabitableZone",
@@ -12,4 +13,5 @@ __all__ = [
     "HabitableZone",
     "UniformHabitableZone",
     "UltravioletHabitableZone",
+    "UltravioletHabitableZoneABG",
 ]

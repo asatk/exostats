@@ -1,16 +1,16 @@
 import argparse as ap
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 
-from hz import CircumstellarHabitableZone, AlfvenSurfaceHabitableZone
-from hz.uhz import UltravioletHabitableZoneABG
+from hz import CircumstellarHabitableZone
+from hz import UltravioletHabitableZoneABG
+from hz import AlfvenSurfaceHabitableZone
 
 F_NUV = 0.1
 LUM_CLASS_FILL = 5
 
 
-
+# command-line argument parsing
 parser = ap.ArgumentParser(prog="stats_hz.py",
                            usage="%(prog)s [options]",
                            description="",
@@ -26,22 +26,25 @@ parser.add_argument("-l", "--lum_class_fill", default=LUM_CLASS_FILL, type=float
                     help="fill value for luminosity class when missing (typically 5=V/Main Sequence).")
 
 
-
+# fetch command-line arguments
 args = vars(parser.parse_args())
 
 cond_s = args["conditions"]
 fnuv_val = args["fnuv"]
 lum_class_fill = args["lum_class_fill"]
 
-df = pd.read_csv("../db/params-rotp.csv")
+# load system parameters
+df = pd.read_csv("../db/params-step3.csv")
 
 
-# determine filtering conditions
+# determine filtering conditions from command-line input
 cond = eval(cond_s)
-
-r_lim = 100.
 df = df.loc[cond].reset_index()
 
+# radial extent for ASHZ (required for ASHZ)
+r_lim = 100.
+
+# define simple aliases for parameters necessary to calculate HZs
 lumi = df["st_lum"].to_numpy()
 teff = df["st_teff"].to_numpy()
 prot = df["st_rotp"].to_numpy()
@@ -51,16 +54,32 @@ rapo = (1 + df["pl_orbeccen"].to_numpy()) * df["pl_orbsmax"].to_numpy()
 eccen = df["pl_orbeccen"].to_numpy()
 smax = df["pl_orbsmax"].to_numpy()
 
+# define a priori the planetary NUV transmission factor
 fnuv = np.repeat([fnuv_val], repeats=len(df))
+
+# define a priori the stellar LC for stars lacking this datum
 lumclass = df["st_lc_num"].fillna(lum_class_fill).to_numpy()
 
+
+
+# NOT USED
 def ellipse(a, e, theta):
+    """
+    Calculate planet orbits in 2D Cartesian (x, y) coordinates given semi-major
+    axis and eccentricity data. Samples the planet orbit according to the
+    provided range of angles `theta`.
+    """
     r = a * (1 - e**2) / (1 - e * np.cos(theta))
     x = r * np.cos(theta)
     y = r * np.sin(theta)
     return np.stack([x, y], axis=0)
 
 def ellipse_polar(a, e, npts: int):
+    """
+    Calculate planet orbits in 2D polar (r, theta) coordinates given semi-major
+    axis and eccentricity data. Samples the planet orbit evenly in theta with
+    `npts` number of points.
+    """
     theta = np.linspace(0, 2 * np.pi, npts, endpoint=True)
 
     ones_theta = np.ones_like(theta)
@@ -69,33 +88,28 @@ def ellipse_polar(a, e, npts: int):
     a_rep = np.outer(a, ones_theta)
     e_rep = np.outer(e, ones_theta)
     theta_rep = np.outer(ones_df, theta)
-    # if nrows is not None:
-    #     theta = np.repeat([theta], repeats=nrows, axis=0).T
+
     r_rep = a_rep * (1 - e_rep**2) / (1 - e_rep * np.cos(theta_rep))
     return np.stack([theta_rep, r_rep], axis=0)
 
 
-npts = 1000
-theta = np.full(npts, np.pi / 2)
-phi = np.linspace(0, 2 * np.pi, npts, endpoint=True)
+
+### CREATE HZ CALCULATORS
 
 # Kopparapu+ 14 CHZ
 chz = CircumstellarHabitableZone(teff, 10**lumi, plmass)
-# chz_zone = chz.zone(theta, phi)
 
 # Spinelli+ 23 UHZ
 uhz = UltravioletHabitableZoneABG(teff, fnuv)
-# uhz_zone = uhz.zone(theta, phi)
 
 # Atkinson+ 24 ASHZ
 # r_lim = np.max(rapo)
 # print(f"Max radius: {r_lim:.03f} au")
 ashz = AlfvenSurfaceHabitableZone(teff, lumclass, prot, r_lim)
-# ashz_zone = ashz.zone(theta, phi)
 
-# chz_lo, chz_hi = chz.zone(theta, phi)
-# uhz_lo, uhz_hi = uhz.zone(theta, phi)
-# ashz_lo, ashz_hi = ashz.zone(theta, phi)
+
+
+### CALCULATE INNER AND OUTER RADII FOR EACH HZ
 
 chz_inner = chz.inner_rad()
 chz_outer = chz.outer_rad()
@@ -108,12 +122,17 @@ hz_outer_abg = np.min([chz_outer, uhz_outer, ashz_outer], axis=0)
 
 
 
+# NOT USED
 def calc_angles_safe(r: np.ndarray,
                      theta: np.ndarray,
                      orb_a: np.ndarray,
                      orb_e: np.ndarray,
                      inner: np.ndarray,
                      outer: np.ndarray):
+    """
+    Calculate the fraction of a planet's orbital angle (2 pi) that a planet
+    spends within a HZ.
+    """
     inner_rep = np.repeat([inner], r.shape[-1], axis=0).T
     outer_rep = np.repeat([outer], r.shape[-1], axis=0).T
     time_safe = np.sum((r > inner_rep) & (r < outer_rep), axis=1) / npts
@@ -126,6 +145,10 @@ def calc_time_safe(r: np.ndarray,
                    inner: np.ndarray,
                    outer: np.ndarray,
                    atol: np.float64=1e-6):
+    """
+    Calculate the fraction of a planet's orbital period that a planet spends
+    within a HZ.
+    """
     inner_rep = np.repeat([inner], r.shape[-1], axis=0).T
     outer_rep = np.repeat([outer], r.shape[-1], axis=0).T
 
@@ -146,18 +169,27 @@ def calc_time_safe(r: np.ndarray,
     tiz[np.isclose(tiz, 1.0, atol=atol)] = 1.0
     return tiz
 
+# number of points to sample planet orbit
+npts = 1000
+# calculate (polar) orbits of each planet around star
 orbits = ellipse_polar(smax, eccen, npts)
+# orbit angular coordinate
 orbits_th = orbits[0]
+# orbit radial coordinate
 orbits_r = orbits[1]
 
+# determine the amount of time (not angle) of a planet's orbit lies in HZ
 chz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, chz_inner, chz_outer)
 uhz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, uhz_inner, uhz_outer)
 ashz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, ashz_inner, ashz_outer)
 hz_safe = calc_time_safe(orbits_r, orbits_th, smax, eccen, hz_inner_abg, hz_outer_abg)
 
+# indexes CANDIDATE planets that spend non-zero time in mutual HZ
 safe_cand = hz_safe & (df["disposition"] == 0)
+# indexes CONFIRMED planets that spend non-zero time in mutual HZ
 safe_conf = hz_safe & (df["disposition"] == 1)
 
+# report statistics of 'safe' planets
 print(f"Safe candidate planets: {np.sum(safe_cand)}")
 print(f"Safe confirmed planets: {np.sum(safe_conf)}")
 
@@ -176,5 +208,6 @@ df_uhz_safe = df[uhz_safe > 0.0]
 df_ashz_safe = df[ashz_safe > 0.0]
 df_safe = df[hz_safe > 0.0]
 
+# print names of planets that spend non-zero time in HZ
 for i, pl in df_safe["pl_name"].items():
     print(f"{pl}\t{hz_safe[i]:.3f}")

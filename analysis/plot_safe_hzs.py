@@ -33,14 +33,14 @@ cond_s = args["conditions"]
 fnuv_val = args["fnuv"]
 lum_class_fill = args["lum_class_fill"]
 
-df = pd.read_csv("../db/params-rotp.csv")
+df = pd.read_csv("../db/params-step3.csv")
 
 
 # determine filtering conditions
 cond = eval(cond_s)
 
 r_lim = 100.
-df = df.loc[cond].reset_index()
+# df = df.loc[cond].reset_index()
 
 lumi = df["st_lum"].to_numpy()
 teff = df["st_teff"].to_numpy()
@@ -69,8 +69,6 @@ def ellipse_polar(a, e, npts: int):
     a_rep = np.outer(a, ones_theta)
     e_rep = np.outer(e, ones_theta)
     theta_rep = np.outer(ones_df, theta)
-    # if nrows is not None:
-    #     theta = np.repeat([theta], repeats=nrows, axis=0).T
     r_rep = a_rep * (1 - e_rep**2) / (1 - e_rep * np.cos(theta_rep))
     return np.stack([theta_rep, r_rep], axis=0)
 
@@ -169,9 +167,33 @@ df_safe = df[hz_safe > 0.0]
 df_sol = pd.read_csv("../db/solar_system.csv")
 earth_row = df_sol.loc[df_sol["pl_name"] == "Earth"].iloc[0]
 
-def safe_plot(df: pd.DataFrame, col1: str, col2: str, title: str=None,
+def hz_subplot(ax: plt.Axes, hz_name: str, hz_color: str, hz_cond,
+               df_: pd.DataFrame, col1: str, col2: str,):
+    earth_x = earth_row[col1]
+    earth_y = earth_row[col2]
+    earth_text = earth_row["plot_label"]
+
+    hz_valid = hz_cond & cond
+    hz_invalid = hz_cond & ~cond
+    hz_out = ~np.isnan(hz_safe)
+
+    ax.set_title(f"{hz_name} ({np.sum(hz_valid)})", fontsize=16)
+    ax.scatter(df_.loc[hz_out, col1], df_.loc[hz_out, col2], c="grey",
+                alpha=0.1, s=10)
+    ax.scatter(df_.loc[hz_invalid, col1], df_.loc[hz_invalid, col2], c=hz_color,
+                alpha=0.3, s=10)
+    ax.scatter(df_.loc[hz_valid, col1], df_.loc[hz_valid, col2], c=hz_color,
+                edgecolor="black", lw=0.5, s=10)
+    ax.text(earth_x, earth_y, earth_text, fontsize=24, color=hz_color, va="center",
+             ha="center")
+
+    ax.tick_params(labelsize=14)
+
+
+
+def safe_plot(df_: pd.DataFrame, col1: str, col2: str, title: str=None,
               col1_label: str=None, col2_label: str=None,
-              chz_cond=None, uhz_cond=None, ashz_cond=None, hz_cond=None,
+              cond=None, chz_cond=None, uhz_cond=None, ashz_cond=None, hz_cond=None,
               filename: str=None):
 
     if col1_label is None:
@@ -179,6 +201,9 @@ def safe_plot(df: pd.DataFrame, col1: str, col2: str, title: str=None,
 
     if col2_label is None:
         col2_label = col2
+
+    if cond is None:
+        cond = True
 
     if chz_cond is None:
         chz_cond = chz_safe > 0.0
@@ -192,32 +217,21 @@ def safe_plot(df: pd.DataFrame, col1: str, col2: str, title: str=None,
     if hz_cond is None:
         hz_cond = hz_safe > 0.0
 
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2, figsize=(8,8), sharex=True, sharey=True)
+    # fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(ncols=2, nrows=2, figsize=(8,8), sharex=True, sharey=True)
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1, figsize=(12, 4), sharex=True, sharey=True)
 
     earth_x = earth_row[col1]
     earth_y = earth_row[col2]
-    earth_text = earth_row["plot_label"]
 
-    ax1.set_title(f"CHZ ({np.sum(chz_cond)})", fontsize=16)
-    ax1.scatter(df.loc[chz_cond, col1], df.loc[chz_cond, col2], c="C2", s=10)
-    ax1.text(earth_x, earth_y, earth_text, fontsize=24, color="C2", va="center", ha="center")
+    hz_subplot(ax1, "CHZ", "C2", chz_cond, df_, col1, col2)
+    hz_subplot(ax2, "UHZ", "C4", uhz_cond, df_, col1, col2)
+    hz_subplot(ax3, "ASHZ", "C1", ashz_cond, df_, col1, col2)
+    hz_subplot(ax4, "HZ", "C0", hz_cond, df_, col1, col2)
 
-    ax2.set_title(f"UHZ ({np.sum(uhz_cond)})", fontsize=16)
-    ax2.scatter(df.loc[uhz_cond, col1], df.loc[uhz_cond, col2], c="C4", s=10)
-    ax2.text(earth_x, earth_y, earth_text, fontsize=24, color="C4", va="center", ha="center")
-
-    ax3.set_title(f"ASHZ ({np.sum(ashz_cond)})", fontsize=16)
-    ax3.scatter(df.loc[ashz_cond, col1], df.loc[ashz_cond, col2], c="C1", s=10)
-    ax3.text(earth_x, earth_y, earth_text, fontsize=24, color="C1", va="center", ha="center")
-
-    ax4.set_title(f"HZ ({np.sum(hz_cond)})", fontsize=16)
-    ax4.scatter(df.loc[hz_cond, col1], df.loc[hz_cond, col2], c="C0", s=10)
-    ax4.text(earth_x, earth_y, earth_text, fontsize=24, color="C0", va="center", ha="center")
-
-    ax1.tick_params(labelsize=14)
-    ax2.tick_params(labelsize=14)
-    ax3.tick_params(labelsize=14)
-    ax4.tick_params(labelsize=14)
+    # ax1.tick_params(labelsize=14)
+    # ax2.tick_params(labelsize=14)
+    # ax3.tick_params(labelsize=14)
+    # ax4.tick_params(labelsize=14)
     ax1.set_xscale("log")
     ax1.set_yscale("log")
     ax1.set_xlim(min(0.6 * earth_x, ax1.get_xlim()[0]),
@@ -238,7 +252,7 @@ def safe_plot(df: pd.DataFrame, col1: str, col2: str, title: str=None,
     ax2.patch.set_visible(False)
     ax3.patch.set_visible(False)
     ax4.patch.set_visible(False)
-    # fig.patch.set_visible(False)
+    fig.patch.set_visible(True)
 
     if filename is not None:
         fig.savefig(filename)
@@ -246,19 +260,23 @@ def safe_plot(df: pd.DataFrame, col1: str, col2: str, title: str=None,
     plt.show()
 
 safe_plot(df, "pl_orbsmax", "pl_bmasse",
-          title="Marginally-Safe Planets and Candidates",
-          # title="Marginally-Safe Planets and Candidates (m < 10 m$_\oplus$)",
+#          title="Planets and Candidates with Orbit Partially in HZ",
+          title="Planets and Candidates with Orbit Partially in HZ\n" + \
+                  r"(M$_\mathrm{pl}$ < 5 M$_\oplus$)",
           col1_label="Semi-major Axis (au)",
           col2_label=r"Planet Mass (M$_\oplus$)",
-          filename="./plots/marginally-safe_hzs.png")
+          cond=cond,
+          filename="./plots/safeish_hzs_RPP.png")
 
 safe_plot(df, "pl_orbsmax", "pl_bmasse",
-          title="Safe Planets and Candidates",
-          # title="Safe Planets and Candidates (m < 10 m$_\oplus$)",
+#          title="Planets and Candidates with Orbit Fully in HZ",
+          title="Planets and Candidates with Orbit Fully in HZ\n" + \
+                  r"(M$_\mathrm{pl}$ < 5 M$_\oplus$)",
           col1_label="Semi-major Axis (au)",
           col2_label=r"Planet Mass (M$_\oplus$)",
+          cond=cond,
           chz_cond=chz_safe == 1.0,
           uhz_cond=uhz_safe == 1.0,
           ashz_cond=ashz_safe == 1.0,
           hz_cond=hz_safe == 1.0,
-          filename="./plots/safe_hzs.png")
+          filename="./plots/safe_hzs_RPP.png")
